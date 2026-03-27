@@ -23,7 +23,6 @@
           <span
             class="filename"
             :class="{'isOsx': platform === 'darwin'}"
-            @click="rename"
           >
             {{ filename }}
           </span>
@@ -171,9 +170,9 @@ export default {
       const hasOpenFolder = this.project && this.project.name
       let title = ''
       if (value) {
-        title = hasOpenFolder ? `${value} - ${this.project.name}` : `${value} - MarkText`
+        title = hasOpenFolder ? `${value} - ${this.project.name}` : `${value} - MarkText Viewer`
       } else {
-        title = hasOpenFolder ? this.project.name : 'MarkText'
+        title = hasOpenFolder ? this.project.name : 'MarkText Viewer'
       }
 
       document.title = title

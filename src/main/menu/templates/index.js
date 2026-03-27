@@ -42,5 +42,5 @@ export default function (keybindings, preferences, recentlyUsedFiles) {
     theme(preferences),
     view(keybindings),
     help()
-  ]
+  ].filter(Boolean)
 }

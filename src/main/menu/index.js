@@ -274,6 +274,8 @@ class AppMenu {
     const menus = this.getWindowMenuById(windowId)
     const crlfMenu = menus.getMenuItemById('crlfLineEndingMenuEntry')
     const lfMenu = menus.getMenuItemById('lfLineEndingMenuEntry')
+    // READ-ONLY MODE: Line ending menu items may not exist.
+    if (!crlfMenu || !lfMenu) return
     if (lineEnding === 'crlf') {
       crlfMenu.checked = true
     } else {

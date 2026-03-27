@@ -1,27 +1,14 @@
+// Last modified: 2026-03-27--0000
+// READ-ONLY MODE: Stripped save/edit/new items. Open, Export, Print, Close, Quit only.
 import { app } from 'electron'
 import * as actions from '../actions/file'
 import { userSetting } from '../actions/marktext'
 import { isOsx } from '../../config'
 
 export default function (keybindings, userPreference, recentlyUsedFiles) {
-  const { autoSave } = userPreference.getAll()
   const fileMenu = {
     label: '&File',
     submenu: [{
-      label: 'New Tab',
-      accelerator: keybindings.getAccelerator('file.new-tab'),
-      click (menuItem, browserWindow) {
-        actions.newBlankTab(browserWindow)
-      }
-    }, {
-      label: 'New Window',
-      accelerator: keybindings.getAccelerator('file.new-window'),
-      click (menuItem, browserWindow) {
-        actions.newEditorWindow()
-      }
-    }, {
-      type: 'separator'
-    }, {
       label: 'Open File...',
       accelerator: keybindings.getAccelerator('file.open-file'),
       click (menuItem, browserWindow) {
@@ -75,47 +62,6 @@ export default function (keybindings, userPreference, recentlyUsedFiles) {
 
   fileMenu.submenu.push({
     type: 'separator'
-  }, {
-    label: 'Save',
-    accelerator: keybindings.getAccelerator('file.save'),
-    click (menuItem, browserWindow) {
-      actions.save(browserWindow)
-    }
-  }, {
-    label: 'Save As...',
-    accelerator: keybindings.getAccelerator('file.save-as'),
-    click (menuItem, browserWindow) {
-      actions.saveAs(browserWindow)
-    }
-  }, {
-    label: 'Auto Save',
-    type: 'checkbox',
-    checked: autoSave,
-    id: 'autoSaveMenuItem',
-    click (menuItem, browserWindow) {
-      actions.autoSave(menuItem, browserWindow)
-    }
-  }, {
-    type: 'separator'
-  }, {
-    label: 'Move To...',
-    accelerator: keybindings.getAccelerator('file.move-file'),
-    click (menuItem, browserWindow) {
-      actions.moveTo(browserWindow)
-    }
-  }, {
-    label: 'Rename...',
-    accelerator: keybindings.getAccelerator('file.rename-file'),
-    click (menuItem, browserWindow) {
-      actions.rename(browserWindow)
-    }
-  }, {
-    type: 'separator'
-  }, {
-    label: 'Import...',
-    click (menuItem, browserWindow) {
-      actions.importFile(browserWindow)
-    }
   }, {
     label: 'Export',
     submenu: [

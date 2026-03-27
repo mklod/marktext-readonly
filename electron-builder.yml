@@ -6,8 +6,9 @@ asarUnpack:
 - "**/*.node"
 directories:
   output: "build"
-# Workaround: Don't download prebuilt libraries (GH#2953).
-buildDependenciesFromSource: true
+# READ-ONLY MODE: Skip native module rebuild (no VS Build Tools).
+buildDependenciesFromSource: false
+npmRebuild: false
 files:
 - "dist/electron/**/*"
 # Don't bundle these files

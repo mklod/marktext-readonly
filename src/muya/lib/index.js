@@ -1,9 +1,10 @@
 import ContentState from './contentState'
 import EventCenter from './eventHandler/event'
 import MouseEvent from './eventHandler/mouseEvent'
-import Clipboard from './eventHandler/clipboard'
-import Keyboard from './eventHandler/keyboard'
-import DragDrop from './eventHandler/dragDrop'
+// READ-ONLY MODE: Disabled editing event handlers.
+// import Clipboard from './eventHandler/clipboard'
+// import Keyboard from './eventHandler/keyboard'
+// import DragDrop from './eventHandler/dragDrop'
 import Resize from './eventHandler/resize'
 import ClickEvent from './eventHandler/clickEvent'
 import { CLASS_OR_ID, MUYA_DEFAULT_OPTION } from './config'
@@ -38,10 +39,11 @@ class Muya {
     }
 
     this.contentState = new ContentState(this, this.options)
-    this.clipboard = new Clipboard(this)
+    // READ-ONLY MODE: Skip clipboard, keyboard, and drag-drop handlers.
+    // this.clipboard = new Clipboard(this)
     this.clickEvent = new ClickEvent(this)
-    this.keyboard = new Keyboard(this)
-    this.dragdrop = new DragDrop(this)
+    // this.keyboard = new Keyboard(this)
+    // this.dragdrop = new DragDrop(this)
     this.resize = new Resize(this)
     this.mouseEvent = new MouseEvent(this)
     this.init()
@@ -359,23 +361,20 @@ class Muya {
   }
 
   copyAsMarkdown () {
-    this.clipboard.copyAsMarkdown()
+    // READ-ONLY MODE: no-op if clipboard disabled
+    if (this.clipboard) this.clipboard.copyAsMarkdown()
   }
 
   copyAsHtml () {
-    this.clipboard.copyAsHtml()
+    if (this.clipboard) this.clipboard.copyAsHtml()
   }
 
   pasteAsPlainText () {
-    this.clipboard.pasteAsPlainText()
+    // READ-ONLY MODE: no-op
   }
 
-  /**
-   * Copy the anchor block contains the block with `info`. like copy as markdown.
-   * @param {string|object} key the block key or block
-   */
   copy (info) {
-    return this.clipboard.copy('copyBlock', info)
+    if (this.clipboard) return this.clipboard.copy('copyBlock', info)
   }
 
   setOptions (options, needRender = false) {
@@ -412,7 +411,8 @@ class Muya {
   }
 
   hideAllFloatTools () {
-    return this.keyboard.hideAllFloatTools()
+    // READ-ONLY MODE: guard against disabled keyboard handler
+    if (this.keyboard) return this.keyboard.hideAllFloatTools()
   }
 
   /**
@@ -473,7 +473,8 @@ function getContainer (originContainer, options) {
     container.classList.add('ag-show-quick-insert-hint')
   }
 
-  container.setAttribute('contenteditable', true)
+  // READ-ONLY MODE: Disable editing.
+  container.setAttribute('contenteditable', false)
   container.setAttribute('autocorrect', false)
   container.setAttribute('autocomplete', 'off')
   // NOTE: The browser is not able to correct misspelled words words without

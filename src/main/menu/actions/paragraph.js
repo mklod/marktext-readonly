@@ -202,8 +202,9 @@ export const updateSelectionMenus = (applicationMenu, state) => {
     isCodeContent
   } = state
 
-  // Reset format menu.
+  // READ-ONLY MODE: Format and paragraph menus may not exist.
   const formatMenuItem = applicationMenu.getMenuItemById('formatMenuItem')
+  if (!formatMenuItem) return
   formatMenuItem.submenu.items.forEach(item => (item.enabled = true))
 
   // Handle menu checked.

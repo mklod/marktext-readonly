@@ -33,7 +33,7 @@ const state = {
   autoGuessEncoding: true,
   trimTrailingNewline: 2,
   textDirection: 'ltr',
-  hideQuickInsertHint: false,
+  hideQuickInsertHint: true, // READ-ONLY MODE: always hide
   imageInsertAction: 'folder',
   imagePreferRelativeDirectory: false,
   imageRelativeDirectoryName: 'assets',

@@ -177,14 +177,9 @@ class EditorWindow extends BaseWindow {
       })
     })
 
-    // Before closed. We cancel the action and ask the editor further instructions.
+    // READ-ONLY MODE: Close immediately without save prompts.
     win.on('close', event => {
       this.emit('window-close')
-
-      event.preventDefault()
-      win.webContents.send('mt::ask-for-close')
-
-      // TODO: Close all watchers etc. Should we do this manually or listen to 'quit' event?
     })
 
     // The window is now destroyed.

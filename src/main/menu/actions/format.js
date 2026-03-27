@@ -93,7 +93,9 @@ export const loadFormatCommands = commandManager => {
  * @param {Object.<string, boolean>} formats A object map with selected formats.
  */
 export const updateFormatMenu = (applicationMenu, formats) => {
+  // READ-ONLY MODE: Format menu may not exist.
   const formatMenuItem = applicationMenu.getMenuItemById('formatMenuItem')
+  if (!formatMenuItem) return
   formatMenuItem.submenu.items.forEach(item => (item.checked = false))
   formatMenuItem.submenu.items
     .forEach(item => {

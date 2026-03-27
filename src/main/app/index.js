@@ -12,7 +12,8 @@ import { normalizeMarkdownPath } from '../filesystem/markdown'
 import { registerKeyboardListeners } from '../keyboard'
 import { selectTheme } from '../menu/actions/theme'
 import { dockMenu } from '../menu/templates'
-import registerSpellcheckerListeners from '../spellchecker'
+// READ-ONLY MODE: Spellchecker disabled.
+// import registerSpellcheckerListeners from '../spellchecker'
 import { watchers } from '../utils/imagePathAutoComplement'
 import { WindowType } from '../windows/base'
 import EditorWindow from '../windows/editor'
@@ -423,7 +424,8 @@ class App {
 
   _listenForIpcMain () {
     registerKeyboardListeners()
-    registerSpellcheckerListeners()
+    // READ-ONLY MODE: Skip spellchecker for faster startup.
+    // registerSpellcheckerListeners()
 
     ipcMain.on('app-create-editor-window', () => {
       this._createEditorWindow()

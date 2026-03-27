@@ -184,13 +184,15 @@ const mutations = {
     }
   },
   SET_SAVE_STATUS_BY_TAB (state, { tab, status }) {
+    // READ-ONLY MODE: Always report saved.
     if (hasKeys(tab)) {
-      tab.isSaved = status
+      tab.isSaved = true
     }
   },
   SET_SAVE_STATUS (state, status) {
+    // READ-ONLY MODE: Always report saved.
     if (hasKeys(state.currentFile)) {
-      state.currentFile.isSaved = status
+      state.currentFile.isSaved = true
     }
   },
   SET_SAVE_STATUS_WHEN_REMOVE (state, { pathname }) {
@@ -500,20 +502,9 @@ const actions = {
   },
 
   LISTEN_FOR_CLOSE ({ state }) {
+    // READ-ONLY MODE: Always close immediately, never prompt to save.
     ipcRenderer.on('mt::ask-for-close', e => {
-      const unsavedFiles = state.tabs
-        .filter(file => !file.isSaved)
-        .map(file => {
-          const { id, filename, pathname, markdown } = file
-          const options = getOptionsFromState(file)
-          return { id, filename, pathname, markdown, options }
-        })
-
-      if (unsavedFiles.length) {
-        ipcRenderer.send('mt::close-window-confirm', unsavedFiles)
-      } else {
-        ipcRenderer.send('mt::close-window')
-      }
+      ipcRenderer.send('mt::close-window')
     })
   },
 
@@ -707,12 +698,8 @@ const actions = {
   },
 
   CLOSE_TAB ({ dispatch }, file) {
-    const { isSaved } = file
-    if (isSaved) {
-      dispatch('FORCE_CLOSE_TAB', file)
-    } else {
-      dispatch('CLOSE_UNSAVED_TAB', file)
-    }
+    // READ-ONLY MODE: Always force close, never prompt to save.
+    dispatch('FORCE_CLOSE_TAB', file)
   },
 
   CLOSE_OTHER_TABS ({ state, dispatch }, file) {
