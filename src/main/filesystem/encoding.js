@@ -1,4 +1,10 @@
-import ced from 'ced'
+// READ-ONLY MODE: ced native module removed — always default to utf8.
+let ced = null
+try {
+  ced = require('ced')
+} catch (e) {
+  // Native module not available; encoding detection will default to UTF-8.
+}
 
 const CED_ICONV_ENCODINGS = {
   'BIG5-CP950': 'big5',
@@ -62,7 +68,7 @@ export const guessEncoding = (buffer, autoGuessEncoding) => {
   // }
 
   // Auto guess encoding, otherwise use UTF8.
-  if (autoGuessEncoding) {
+  if (autoGuessEncoding && ced) {
     encoding = ced(buffer)
     if (CED_ICONV_ENCODINGS[encoding]) {
       encoding = CED_ICONV_ENCODINGS[encoding]

@@ -2,12 +2,19 @@ import fs from 'fs'
 import path from 'path'
 import EventEmitter from 'events'
 import { BrowserWindow, ipcMain, dialog } from 'electron'
-import keytar from 'keytar'
 import schema from './schema'
 import Store from 'electron-store'
 import log from 'electron-log'
 import { ensureDirSync } from 'common/filesystem'
 import { IMAGE_EXTENSIONS } from 'common/filesystem/paths'
+
+// READ-ONLY MODE: keytar may not be available without VS build tools.
+let keytar = null
+try {
+  keytar = require('keytar')
+} catch (e) {
+  // Credential storage unavailable — not needed for read-only viewer.
+}
 
 const DATA_CENTER_NAME = 'dataCenter'
 
@@ -56,6 +63,7 @@ class DataCenter extends EventEmitter {
     const { serviceName, encryptKeys } = this
     const data = this.store.store
     try {
+      if (!keytar) return data
       const encryptData = await Promise.all(encryptKeys.map(key => {
         return keytar.getPassword(serviceName, key)
       }))
@@ -109,7 +117,7 @@ class DataCenter extends EventEmitter {
    */
   getItem (key) {
     const { encryptKeys, serviceName } = this
-    if (encryptKeys.includes(key)) {
+    if (encryptKeys.includes(key) && keytar) {
       return keytar.getPassword(serviceName, key)
     } else {
       const value = this.store.get(key)
@@ -123,7 +131,7 @@ class DataCenter extends EventEmitter {
       ensureDirSync(value)
     }
     ipcMain.emit('broadcast-user-data-changed', { [key]: value })
-    if (encryptKeys.includes(key)) {
+    if (encryptKeys.includes(key) && keytar) {
       try {
         return await keytar.setPassword(serviceName, key, value)
       } catch (err) {

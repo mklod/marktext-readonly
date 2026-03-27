@@ -93,7 +93,11 @@ class WindowManager extends EventEmitter {
     })
     window.on('window-closed', () => {
       this.remove(windowId)
-      this._watcher.unwatchByWindowId(windowId)
+      try {
+        this._watcher.unwatchByWindowId(windowId)
+      } catch (e) {
+        // Window may already be destroyed in read-only mode.
+      }
     })
   }
 
@@ -304,7 +308,11 @@ class WindowManager extends EventEmitter {
     const { _appMenu, _windows } = this
 
     // Free watchers used by this window
-    this._watcher.unwatchByWindowId(windowId)
+    try {
+      this._watcher.unwatchByWindowId(windowId)
+    } catch (e) {
+      // Window may already be destroyed.
+    }
 
     // Application clearup and remove listeners
     _appMenu.removeWindowMenu(windowId)
@@ -313,8 +321,7 @@ class WindowManager extends EventEmitter {
     // Destroy window wrapper and browser window
     if (window) {
       window.destroy()
-    } else {
-      log.error('Something went wrong: Cannot find associated application window!')
+    } else if (!browserWindow.isDestroyed()) {
       browserWindow.destroy()
     }
 

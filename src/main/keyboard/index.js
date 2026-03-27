@@ -2,9 +2,21 @@ import { ipcMain, shell } from 'electron'
 import log from 'electron-log'
 import EventEmitter from 'events'
 import fsPromises from 'fs/promises'
-import { getCurrentKeyboardLayout, getKeyMap, onDidChangeKeyboardLayout } from 'native-keymap'
 import os from 'os'
 import path from 'path'
+
+// READ-ONLY MODE: native-keymap may not be available.
+let getCurrentKeyboardLayout, getKeyMap, onDidChangeKeyboardLayout
+try {
+  const nativeKeymap = require('native-keymap')
+  getCurrentKeyboardLayout = nativeKeymap.getCurrentKeyboardLayout
+  getKeyMap = nativeKeymap.getKeyMap
+  onDidChangeKeyboardLayout = nativeKeymap.onDidChangeKeyboardLayout
+} catch (e) {
+  getCurrentKeyboardLayout = () => 'US'
+  getKeyMap = () => ({})
+  onDidChangeKeyboardLayout = () => {}
+}
 
 let currentKeyboardInfo = null
 const loadKeyboardInfo = () => {
