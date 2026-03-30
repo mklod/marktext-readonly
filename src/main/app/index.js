@@ -16,7 +16,7 @@ import { dockMenu } from '../menu/templates'
 // import registerSpellcheckerListeners from '../spellchecker'
 // READ-ONLY MODE: watchers not needed (no cleanup on window-all-closed).
 // import { watchers } from '../utils/imagePathAutoComplement'
-import { WindowType } from '../windows/base'
+import { WindowType, WindowLifecycle } from '../windows/base'
 import EditorWindow from '../windows/editor'
 import SettingWindow from '../windows/setting'
 
@@ -197,7 +197,8 @@ class App {
     if (_openFilesCache.length) {
       this._openFilesToOpen()
     } else {
-      this._createEditorWindow()
+      // READ-ONLY MODE: Start hidden to tray (no blank window on launch)
+      this._createWarmWindow()
     }
 
     // READ-ONLY MODE: Create system tray for instant re-open.
@@ -306,6 +307,10 @@ class App {
     const editor = new EditorWindow(this._accessor)
     editor.createWindow(null, [], [], { show: false })
     this._windowManager.add(editor)
+    // Ensure window is truly hidden (belt and suspenders)
+    if (editor.browserWindow) {
+      editor.browserWindow.hide()
+    }
     return editor
   }
 
@@ -655,6 +660,9 @@ class App {
         if (!warmWindow) {
           try {
             warmWindow = this._createWarmWindow()
+            warmWindow.on('window-ready', () => {
+              console.log('[PERF] warm window READY')
+            })
             console.log('[PERF] warm window pre-created')
           } catch (e) {
             log.error('Failed to pre-warm window:', e)
@@ -681,30 +689,60 @@ class App {
         const eol = preferences.getPreferredEol()
         const { autoGuessEncoding, trimTrailingNewline } = preferences.getAll()
 
-        // Find a hidden (tray'd) window to reuse, or use pre-warmed window
-        let targetWin = null
+        // Find a hidden tray'd window (was shown before, now hidden) to reuse
+        let trayWin = null
         for (const w of _windowManager.windows.values()) {
-          if (w.browserWindow && !w.browserWindow.isDestroyed() && !w.browserWindow.isVisible()) {
-            targetWin = w
+          if (w.browserWindow && !w.browserWindow.isDestroyed() && !w.browserWindow.isVisible() && !w._startHidden) {
+            trayWin = w
             break
           }
         }
 
-        // If no hidden window available, use pre-warmed or create new
-        if (!targetWin && warmWindow) {
-          targetWin = warmWindow
-          warmWindow = null
-        }
-
-        if (targetWin && targetWin.browserWindow && !targetWin.browserWindow.isDestroyed()) {
-          // Fast path: show existing hidden window + swap content
-          targetWin.bringToFront()
+        if (trayWin && trayWin.browserWindow && !trayWin.browserWindow.isDestroyed()) {
+          // Fastest path: show tray'd window + swap content
+          trayWin.bringToFront()
           loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
             console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
-            targetWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+            trayWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
           }).catch(err => log.error('Pipe file load error:', err))
+        } else if (warmWindow && warmWindow.browserWindow && !warmWindow.browserWindow.isDestroyed() && warmWindow.lifecycle === WindowLifecycle.READY) {
+          // Fast path: load content into warm window FIRST, then show
+          console.log('[PERF] using warm window (lifecycle=' + warmWindow.lifecycle + ')')
+          const ww = warmWindow
+          warmWindow = null
+          loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
+            console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
+            ww.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+            // Show after content is sent
+            ww._startHidden = false
+            setTimeout(() => {
+              if (ww.browserWindow && !ww.browserWindow.isDestroyed()) {
+                ww.browserWindow.show()
+                ww.browserWindow.focus()
+              }
+            }, 100)
+          }).catch(err => log.error('Pipe file load error:', err))
+        } else if (warmWindow && warmWindow.browserWindow && !warmWindow.browserWindow.isDestroyed() && warmWindow.lifecycle === WindowLifecycle.LOADING) {
+          // Warm window exists but still loading — wait for it, then show with content
+          console.log('[PERF] warm window loading, queuing file')
+          const ww = warmWindow
+          warmWindow = null
+          ww.once('window-ready', () => {
+            loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
+              console.log(`[PERF] pipe-file-loaded-queued: ${Date.now() - _pipeStart}ms`)
+              ww.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+              ww._startHidden = false
+              setTimeout(() => {
+                if (ww.browserWindow && !ww.browserWindow.isDestroyed()) {
+                  ww.browserWindow.show()
+                  ww.browserWindow.focus()
+                }
+              }, 100)
+            }).catch(err => log.error('Pipe file load error:', err))
+          })
         } else {
           // Slow path: create new window with file
+          console.log('[PERF] slow path: creating new window')
           this._createEditorWindow(null, [filePath])
         }
 

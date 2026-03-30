@@ -40,7 +40,9 @@ class EditorWindow extends BaseWindow {
    */
   createWindow (rootDirectory = null, fileList = [], markdownList = [], options = {}) {
     const { menu: appMenu, env, preferences } = this._accessor
-    const addBlankTab = !rootDirectory && fileList.length === 0 && markdownList.length === 0
+    this._startHidden = options.show === false
+    // Don't create a blank tab for warm (hidden) windows
+    const addBlankTab = !this._startHidden && !rootDirectory && fileList.length === 0 && markdownList.length === 0
 
     const mainWindowState = windowStateKeeper({
       defaultWidth: 1200,
@@ -99,8 +101,10 @@ class EditorWindow extends BaseWindow {
       this.lifecycle = WindowLifecycle.READY
       this.emit('window-ready')
 
-      // Restore and focus window
-      this.bringToFront()
+      // Don't show warm (hidden) windows automatically
+      if (!this._startHidden) {
+        this.bringToFront()
+      }
 
       const lineEnding = preferences.getPreferredEol()
       appMenu.updateLineEndingMenu(this.id, lineEnding)
