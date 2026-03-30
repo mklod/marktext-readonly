@@ -257,7 +257,9 @@ class EditorWindow extends BaseWindow {
     const { autoGuessEncoding, trimTrailingNewline } = preferences.getAll()
 
     for (const { filePath, options, selected } of fileList) {
+      const _perfTabStart = Date.now()
       loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
+        console.log(`[PERF] file-loaded: ${Date.now() - _perfTabStart}ms (${filePath})`)
         if (this.lifecycle === WindowLifecycle.READY) {
           this._doOpenTab(rawDocument, options, selected)
         } else {

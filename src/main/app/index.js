@@ -646,6 +646,12 @@ class App {
         data += chunk.toString()
       })
       socket.on('end', () => {
+        console.log(`[PERF] pipe-received: ${Date.now()}`)
+        // Show window IMMEDIATELY before loading file
+        const win = _windowManager.getActiveWindow()
+        if (win) {
+          win.bringToFront()
+        }
         const lines = data.trim().split('\n').filter(Boolean)
         for (const line of lines) {
           const filePath = line.trim()
@@ -658,11 +664,6 @@ class App {
         }
         if (_openFilesCache.length) {
           this._openFilesToOpen()
-        }
-        // Always show the window
-        const win = _windowManager.getActiveWindow()
-        if (win) {
-          win.bringToFront()
         }
       })
     })

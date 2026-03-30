@@ -659,9 +659,12 @@ const actions = {
   // Open a new tab, optionally with content.
   LISTEN_FOR_NEW_TAB ({ dispatch }) {
     ipcRenderer.on('mt::open-new-tab', (e, markdownDocument, options = {}, selected = true) => {
+      const _perfStart = Date.now()
       if (markdownDocument) {
         // Create tab with content.
         dispatch('NEW_TAB_WITH_CONTENT', { markdownDocument, options, selected })
+        console.log(`[PERF] renderer-tab-opened: ${Date.now() - _perfStart}ms`)
+        ipcRenderer.send('mt::perf-content-ready', Date.now())
       } else {
         // Fallback: create a blank tab and always select it
         dispatch('NEW_UNTITLED_TAB', {})
