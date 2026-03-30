@@ -39,7 +39,7 @@ const rendererConfig = {
     renderer: path.join(__dirname, '../src/renderer/main.js')
   },
   externals: [
-    ...Object.keys(dependencies || {}).filter(d => !whiteListedModules.includes(d))
+    ...Object.keys(dependencies || {}).filter(d => !whiteListedModules.includes(d) && d !== 'fontmanager-redux')
   ],
   module: {
     rules: [
@@ -210,7 +210,8 @@ const rendererConfig = {
       'common': path.join(__dirname, '../src/common'),
       'muya': path.join(__dirname, '../src/muya'),
       snapsvg: path.join(__dirname, '../src/muya/lib/assets/libs/snap.svg-min.js'),
-      'vue$': 'vue/dist/vue.esm.js'
+      'vue$': 'vue/dist/vue.esm.js',
+      'fontmanager-redux': path.join(__dirname, '../src/stubs/fontmanager-redux.js')
     },
     extensions: ['.js', '.vue', '.json', '.css', '.node']
   },

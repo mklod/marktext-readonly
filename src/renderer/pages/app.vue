@@ -195,6 +195,9 @@ export default {
       const style = global.marktext.initialState || DEFAULT_STYLE
       addStyles(style)
       this.hideLoadingPage()
+      // READ-ONLY MODE: Log content-ready time for benchmarking.
+      const { ipcRenderer } = require('electron')
+      ipcRenderer.send('mt::perf-content-ready', Date.now())
     })
   }
 }

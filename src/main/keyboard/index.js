@@ -5,18 +5,7 @@ import fsPromises from 'fs/promises'
 import os from 'os'
 import path from 'path'
 
-// READ-ONLY MODE: native-keymap may not be available.
-let getCurrentKeyboardLayout, getKeyMap, onDidChangeKeyboardLayout
-try {
-  const nativeKeymap = require('native-keymap')
-  getCurrentKeyboardLayout = nativeKeymap.getCurrentKeyboardLayout
-  getKeyMap = nativeKeymap.getKeyMap
-  onDidChangeKeyboardLayout = nativeKeymap.onDidChangeKeyboardLayout
-} catch (e) {
-  getCurrentKeyboardLayout = () => 'US'
-  getKeyMap = () => ({})
-  onDidChangeKeyboardLayout = () => {}
-}
+import { getCurrentKeyboardLayout, getKeyMap, onDidChangeKeyboardLayout } from 'native-keymap'
 
 let currentKeyboardInfo = null
 const loadKeyboardInfo = () => {

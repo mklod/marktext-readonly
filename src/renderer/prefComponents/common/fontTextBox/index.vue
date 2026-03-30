@@ -100,17 +100,12 @@ export default {
     }
   },
   mounted () {
-    // READ-ONLY MODE: fontmanager-redux may not be available.
-    try {
-      const fontManager = require('fontmanager-redux')
-      const { onlyMonospace } = this
-      const buf = fontManager.getAvailableFontsSync()
-        .filter(f => f.family && (!onlyMonospace || (onlyMonospace && f.monospace)))
-        .map(f => f.family)
-      this.fontFamilies = [...new Set(buf)].sort((a, b) => a.localeCompare(b))
-    } catch (e) {
-      this.fontFamilies = []
-    }
+    const fontManager = require('fontmanager-redux')
+    const { onlyMonospace } = this
+    const buf = fontManager.getAvailableFontsSync()
+      .filter(f => f.family && (!onlyMonospace || (onlyMonospace && f.monospace)))
+      .map(f => f.family)
+    this.fontFamilies = [...new Set(buf)].sort((a, b) => a.localeCompare(b))
   }
 }
 </script>

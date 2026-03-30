@@ -9,6 +9,15 @@ const ESLintPlugin = require('eslint-webpack-plugin')
 const { getEnvironmentDefinitions } = require('./marktextEnvironment')
 const { dependencies } = require('../package.json')
 
+// READ-ONLY MODE: Stub out native modules that require VS Build Tools compilation.
+// These are resolved at build time to simple JS stubs instead of probing the filesystem.
+const nativeModuleStubs = {
+  'ced': path.join(__dirname, '../src/stubs/ced.js'),
+  'keytar': path.join(__dirname, '../src/stubs/keytar.js'),
+  'native-keymap': path.join(__dirname, '../src/stubs/native-keymap.js'),
+  'fontmanager-redux': path.join(__dirname, '../src/stubs/fontmanager-redux.js')
+}
+
 const isProduction = process.env.NODE_ENV === 'production'
 
 /** @type {import('webpack').Configuration} */
@@ -22,7 +31,7 @@ const mainConfig = {
     main: path.join(__dirname, '../src/main/index.js')
   },
   externals: [
-    ...Object.keys(dependencies || {})
+    ...Object.keys(dependencies || {}).filter(d => !nativeModuleStubs[d])
   ],
   module: {
     rules: [
@@ -73,7 +82,8 @@ const mainConfig = {
   ],
   resolve: {
     alias: {
-      'common': path.join(__dirname, '../src/common')
+      'common': path.join(__dirname, '../src/common'),
+      ...nativeModuleStubs
     },
     extensions: ['.js', '.json', '.node']
   },

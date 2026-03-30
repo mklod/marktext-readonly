@@ -4,25 +4,34 @@
 Fork of MarkText (Electron markdown editor) stripped down to a lightweight read-only markdown viewer. Goal: open .md files as fast as SumatraPDF opens PDFs. Never prompt to save.
 
 ## Tech Stack
-- Electron + Vue.js (inherited from MarkText)
+- Electron 18 + Vue.js (inherited from MarkText)
 - Muya editor engine (set to contenteditable=false)
+- System tray for persistent background process
 
 ## Key Files Modified
-- `src/main/windows/editor.js` — window close handler (force close)
+### Core read-only changes
+- `src/main/windows/editor.js` — hide-to-tray on close, no save prompts
 - `src/renderer/store/editor.js` — close/save logic neutralized
 - `src/muya/lib/index.js` — contenteditable=false, disabled keyboard/clipboard/drag
-- `src/main/menu/templates/edit.js` — stripped to Copy/Find only
-- `src/main/menu/templates/format.js` — returns null (removed)
-- `src/main/menu/templates/paragraph.js` — returns null (removed)
-- `src/main/menu/templates/file.js` — stripped save/new/import items
-- `src/main/menu/templates/index.js` — filter(Boolean) for null menus
-- `src/main/menu/index.js` — null guards for removed menu items
-- `src/main/menu/actions/format.js` — null guard
-- `src/main/menu/actions/paragraph.js` — null guard
-- `src/main/contextMenu/editor/index.js` — copy-only context menu
-- `src/main/app/index.js` — disabled spellchecker init
-- `src/renderer/store/preferences.js` — hideQuickInsertHint=true
-- `src/renderer/components/titleBar/index.vue` — "MarkText Viewer" title, no rename
+- `src/main/config.js` — spellcheck disabled in webPreferences
+
+### Menu stripping
+- `src/main/menu/templates/edit.js` — Copy/Find only
+- `src/main/menu/templates/format.js` — removed
+- `src/main/menu/templates/paragraph.js` — removed
+- `src/main/menu/templates/file.js` — Open/Export/Print/Close only
+- `src/main/contextMenu/editor/index.js` — Copy only
+
+### Native module stubs (webpack compile-time)
+- `src/stubs/ced.js` — UTF-8 stub
+- `src/stubs/keytar.js` — no-op credential storage
+- `src/stubs/native-keymap.js` — US keyboard stub
+- `src/stubs/fontmanager-redux.js` — empty font list
+- `.electron-vue/webpack.main.config.js` — alias stubs, exclude from externals
+- `.electron-vue/webpack.renderer.config.js` — fontmanager stub
+
+### System tray
+- `src/main/app/index.js` — tray icon, hide-to-tray, don't quit on window-all-closed
 
 ## Stages
 
@@ -33,12 +42,20 @@ Fork of MarkText (Electron markdown editor) stripped down to a lightweight read-
 - [x] Disable spellchecker
 - [x] Always report saved state
 
-### Stage 2: Build & Test — TODO
-- [ ] Build on Win10
-- [ ] Test opening files, closing, folder sidebar
-- [ ] Verify no runtime errors
+### Stage 2: Build & Native Module Fixes — COMPLETE
+- [x] Build on Win10 without VS Build Tools
+- [x] Webpack compile-time stubs for native modules
+- [x] Runtime guards for windowManager destroyed objects
 
-### Stage 3: Optional Polish — TODO
-- [ ] Consider removing source code mode toggle (editing feature)
-- [ ] Consider stripping more unused dependencies for smaller build
-- [ ] Custom app icon/name if desired
+### Stage 3: Speed Optimization — IN PROGRESS
+- [x] Benchmarked: our build matches original MarkText speed
+- [x] Implemented system tray mode (hide-to-tray on close)
+- [x] Tray re-open benchmark: ~750ms (vs ~1000ms cold)
+- [ ] Investigate content-ready time (not just window-visible)
+- [ ] Consider named pipe / protocol handler to skip second-process launch
+- [ ] Consider stripping heavy unused deps (mermaid 24MB, etc.)
+
+### Stage 4: Polish & Ship — TODO
+- [ ] Push all changes to git
+- [ ] Build installer
+- [ ] Custom app name/icon if desired

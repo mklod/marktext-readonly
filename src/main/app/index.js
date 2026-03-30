@@ -3,7 +3,7 @@ import fsPromises from 'fs/promises'
 import { exec } from 'child_process'
 import dayjs from 'dayjs'
 import log from 'electron-log'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, Tray } from 'electron'
 import { isChildOfDirectory } from 'common/filesystem/paths'
 import { isLinux, isOsx, isWindows } from '../config'
 import parseArgs from '../cli/parser'
@@ -14,7 +14,8 @@ import { selectTheme } from '../menu/actions/theme'
 import { dockMenu } from '../menu/templates'
 // READ-ONLY MODE: Spellchecker disabled.
 // import registerSpellcheckerListeners from '../spellchecker'
-import { watchers } from '../utils/imagePathAutoComplement'
+// READ-ONLY MODE: watchers not needed (no cleanup on window-all-closed).
+// import { watchers } from '../utils/imagePathAutoComplement'
 import { WindowType } from '../windows/base'
 import EditorWindow from '../windows/editor'
 import SettingWindow from '../windows/setting'
@@ -80,17 +81,14 @@ class App {
 
     app.on('open-file', this.openFile) // macOS only
 
+    app.on('before-quit', () => {
+      app.isQuitting = true
+    })
+
     app.on('ready', this.ready)
 
     app.on('window-all-closed', () => {
-      // Close all the image path watcher
-      for (const watcher of watchers.values()) {
-        watcher.close()
-      }
-      this._windowManager.closeWatcher()
-      if (!isOsx) {
-        app.quit()
-      }
+      // READ-ONLY MODE: Don't quit — stay in tray for instant re-open.
     })
 
     app.on('activate', () => { // macOS only
@@ -201,6 +199,44 @@ class App {
     } else {
       this._createEditorWindow()
     }
+
+    // READ-ONLY MODE: Create system tray for instant re-open.
+    const iconPath = path.join(__dirname, '../static/logo-96px.png')
+    this._tray = new Tray(iconPath)
+    this._tray.setToolTip('MarkText Viewer')
+    const trayMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show Window',
+        click: () => {
+          const win = this._windowManager.getActiveWindow()
+          if (win) {
+            win.bringToFront()
+          } else {
+            this._createEditorWindow()
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          app.isQuitting = true
+          app.quit()
+        }
+      }
+    ])
+    this._tray.setContextMenu(trayMenu)
+    this._tray.on('double-click', () => {
+      const win = this._windowManager.getActiveWindow()
+      if (win) {
+        win.bringToFront()
+      } else {
+        this._createEditorWindow()
+      }
+    })
+
+    // READ-ONLY MODE: Named pipe server for instant file opening from launcher.
+    this._startPipeServer()
 
     // this.shortcutCapture = new ShortcutCapture()
     // if (process.env.NODE_ENV === 'development') {
@@ -427,6 +463,12 @@ class App {
     // READ-ONLY MODE: Skip spellchecker for faster startup.
     // registerSpellcheckerListeners()
 
+    // READ-ONLY MODE: Perf logging for benchmarking.
+    ipcMain.on('mt::perf-content-ready', (e, timestamp) => {
+      const elapsed = timestamp - global.__perfMainStart
+      console.log(`[PERF] content-ready: ${timestamp} (${elapsed}ms after main-start)`)
+    })
+
     ipcMain.on('app-create-editor-window', () => {
       this._createEditorWindow()
     })
@@ -581,6 +623,61 @@ class App {
 
     ipcMain.handle('mt::fs-trash-item', async (event, fullPath) => {
       return shell.trashItem(fullPath)
+    })
+  }
+
+  _startPipeServer () {
+    const net = require('net')
+    const PIPE_NAME = '\\\\.\\pipe\\marktext-viewer'
+    const { _openFilesCache, _windowManager } = this
+
+    // Clean up any stale pipe
+    try {
+      const testConn = net.connect(PIPE_NAME)
+      testConn.on('error', () => {})
+      testConn.destroy()
+    } catch (e) {
+      // ignore
+    }
+
+    const server = net.createServer(socket => {
+      let data = ''
+      socket.on('data', chunk => {
+        data += chunk.toString()
+      })
+      socket.on('end', () => {
+        const lines = data.trim().split('\n').filter(Boolean)
+        for (const line of lines) {
+          const filePath = line.trim()
+          if (filePath) {
+            const info = normalizeMarkdownPath(filePath)
+            if (info) {
+              _openFilesCache.push(info)
+            }
+          }
+        }
+        if (_openFilesCache.length) {
+          this._openFilesToOpen()
+        }
+        // Always show the window
+        const win = _windowManager.getActiveWindow()
+        if (win) {
+          win.bringToFront()
+        }
+      })
+    })
+
+    server.on('error', err => {
+      log.error('Pipe server error:', err)
+    })
+
+    server.listen(PIPE_NAME, () => {
+      log.info('Pipe server listening on', PIPE_NAME)
+    })
+
+    // Clean up on quit
+    app.on('will-quit', () => {
+      server.close()
     })
   }
 }

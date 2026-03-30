@@ -1,5 +1,5 @@
 import path from 'path'
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { enable as remoteEnable } from '@electron/remote/main'
 import log from 'electron-log'
 import windowStateKeeper from 'electron-window-state'
@@ -177,9 +177,12 @@ class EditorWindow extends BaseWindow {
       })
     })
 
-    // READ-ONLY MODE: Close immediately without save prompts.
+    // READ-ONLY MODE: Hide to tray instead of closing (unless quitting).
     win.on('close', event => {
-      this.emit('window-close')
+      if (!app.isQuitting) {
+        event.preventDefault()
+        win.hide()
+      }
     })
 
     // The window is now destroyed.
