@@ -301,6 +301,14 @@ class App {
     return editor
   }
 
+  // READ-ONLY MODE: Create a hidden pre-warmed window for instant file opens.
+  _createWarmWindow () {
+    const editor = new EditorWindow(this._accessor)
+    editor.createWindow(null, [], [], { show: false })
+    this._windowManager.add(editor)
+    return editor
+  }
+
   /**
    * Create a new setting window.
    */
@@ -640,6 +648,24 @@ class App {
       // ignore
     }
 
+    // Pre-warm a hidden window for instant second-file opens
+    let warmWindow = null
+    const preWarmWindow = () => {
+      setTimeout(() => {
+        if (!warmWindow) {
+          try {
+            warmWindow = this._createWarmWindow()
+            console.log('[PERF] warm window pre-created')
+          } catch (e) {
+            log.error('Failed to pre-warm window:', e)
+          }
+        }
+      }, 3000)
+    }
+
+    // Start pre-warming after first window is ready
+    preWarmWindow()
+
     const server = net.createServer(socket => {
       let data = ''
       socket.on('data', chunk => {
@@ -647,30 +673,43 @@ class App {
       })
       socket.on('end', () => {
         const _pipeStart = Date.now()
-        // Show window IMMEDIATELY
-        const activeWin = _windowManager.getActiveWindow()
-        if (activeWin) {
-          activeWin.bringToFront()
-        }
-
         const lines = data.trim().split('\n').filter(Boolean)
         const filePath = lines[0] ? lines[0].trim() : null
         if (!filePath) return
 
-        // Fast path: read file and swap content directly in renderer (no new tab/window)
         const { preferences } = this._accessor
         const eol = preferences.getPreferredEol()
         const { autoGuessEncoding, trimTrailingNewline } = preferences.getAll()
 
-        loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
-          console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
-          if (activeWin && activeWin.browserWindow && !activeWin.browserWindow.isDestroyed()) {
-            // Send directly to renderer for instant content swap
-            activeWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+        // Find a hidden (tray'd) window to reuse, or use pre-warmed window
+        let targetWin = null
+        for (const w of _windowManager.windows.values()) {
+          if (w.browserWindow && !w.browserWindow.isDestroyed() && !w.browserWindow.isVisible()) {
+            targetWin = w
+            break
           }
-        }).catch(err => {
-          log.error('Pipe file load error:', err)
-        })
+        }
+
+        // If no hidden window available, use pre-warmed or create new
+        if (!targetWin && warmWindow) {
+          targetWin = warmWindow
+          warmWindow = null
+        }
+
+        if (targetWin && targetWin.browserWindow && !targetWin.browserWindow.isDestroyed()) {
+          // Fast path: show existing hidden window + swap content
+          targetWin.bringToFront()
+          loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
+            console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
+            targetWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+          }).catch(err => log.error('Pipe file load error:', err))
+        } else {
+          // Slow path: create new window with file
+          this._createEditorWindow(null, [filePath])
+        }
+
+        // Pre-warm another window for the next open
+        preWarmWindow()
       })
     })
 

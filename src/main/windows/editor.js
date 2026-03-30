@@ -177,12 +177,19 @@ class EditorWindow extends BaseWindow {
       })
     })
 
-    // READ-ONLY MODE: Hide to tray instead of closing (unless quitting).
+    // READ-ONLY MODE: Hide last window to tray; close extra windows normally.
     win.on('close', event => {
-      if (!app.isQuitting) {
+      if (app.isQuitting) return // Allow quit
+
+      // Count visible windows
+      const { BrowserWindow: BWin } = require('electron')
+      const visibleWindows = BWin.getAllWindows().filter(w => w.isVisible() && !w.isDestroyed())
+      if (visibleWindows.length <= 1) {
+        // Last visible window — hide to tray
         event.preventDefault()
         win.hide()
       }
+      // Extra windows just close normally (no preventDefault)
     })
 
     // The window is now destroyed.
