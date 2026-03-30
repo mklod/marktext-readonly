@@ -564,6 +564,7 @@ export default {
 
       // listen for bus events.
       bus.$on('file-loaded', this.setMarkdownToEditor)
+      bus.$on('viewer-set-markdown', this.handleViewerSwap)
       bus.$on('invalidate-image-cache', this.handleInvalidateImageCache)
       bus.$on('undo', this.handleUndo)
       bus.$on('redo', this.handleRedo)
@@ -1064,6 +1065,17 @@ export default {
       this.editor && this.editor.createTable(this.tableChecker)
     },
 
+    // READ-ONLY MODE: Fast content swap from pipe — no tab creation, no loading spinner.
+    handleViewerSwap ({ markdown, pathname, filename }) {
+      const { editor } = this
+      if (editor) {
+        editor.clearHistory()
+        editor.setMarkdown(markdown)
+      }
+      // Update window title
+      document.title = `${filename} - MarkText Viewer`
+    },
+
     // listen for `open-single-file` event, it will call this method only when open a new file.
     setMarkdownToEditor ({ id, markdown, cursor }) {
       const { editor } = this
@@ -1118,6 +1130,7 @@ export default {
   },
   beforeDestroy () {
     bus.$off('file-loaded', this.setMarkdownToEditor)
+    bus.$off('viewer-set-markdown', this.handleViewerSwap)
     bus.$off('invalidate-image-cache', this.handleInvalidateImageCache)
     bus.$off('undo', this.handleUndo)
     bus.$off('redo', this.handleRedo)

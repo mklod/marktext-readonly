@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -9,9 +10,11 @@ import (
 	"time"
 )
 
-const pipeName = `\\.\pipe\marktext-viewer`
+const pipePath = `\\.\pipe\marktext-viewer`
 
 func main() {
+	start := time.Now()
+
 	// Collect file args (skip flags)
 	var files []string
 	for _, arg := range os.Args[1:] {
@@ -21,27 +24,37 @@ func main() {
 	}
 
 	// Try connecting to the named pipe (running instance)
-	conn, err := net.DialTimeout("pipe", pipeName, 200*time.Millisecond)
-	if err == nil {
-		// Send file paths, one per line
-		for _, f := range files {
-			abs, err := filepath.Abs(f)
-			if err != nil {
-				abs = f
+	// On Windows, named pipes are accessed via regular file I/O
+	conn, err := net.Dial("unix", pipePath)
+	if err != nil {
+		// Fallback: try opening as a file (Windows named pipe)
+		f, ferr := os.OpenFile(pipePath, os.O_WRONLY, 0)
+		if ferr == nil {
+			for _, file := range files {
+				abs, _ := filepath.Abs(file)
+				f.Write([]byte(abs + "\n"))
 			}
-			conn.Write([]byte(abs + "\n"))
+			f.Close()
+			fmt.Fprintf(os.Stderr, "[PERF] launcher-pipe-done: %dms\n", time.Since(start).Milliseconds())
+			return
 		}
-		conn.Close()
+
+		// No running instance — launch MarkText.exe
+		exe, _ := os.Executable()
+		dir := filepath.Dir(exe)
+		marktext := filepath.Join(dir, "MarkText.exe")
+		cmd := exec.Command(marktext, os.Args[1:]...)
+		cmd.Dir = dir
+		cmd.Start()
+		fmt.Fprintf(os.Stderr, "[PERF] launcher-cold-start: %dms\n", time.Since(start).Milliseconds())
 		return
 	}
 
-	// No running instance — launch MarkText.exe from same directory
-	exe, _ := os.Executable()
-	dir := filepath.Dir(exe)
-	marktext := filepath.Join(dir, "MarkText.exe")
-
-	args := os.Args[1:]
-	cmd := exec.Command(marktext, args...)
-	cmd.Dir = dir
-	cmd.Start()
+	// net.Dial worked
+	for _, file := range files {
+		abs, _ := filepath.Abs(file)
+		conn.Write([]byte(abs + "\n"))
+	}
+	conn.Close()
+	fmt.Fprintf(os.Stderr, "[PERF] launcher-pipe-done: %dms\n", time.Since(start).Milliseconds())
 }

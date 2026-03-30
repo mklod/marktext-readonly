@@ -152,6 +152,7 @@ export default {
     dispatch('LINTEN_FOR_SET_ENCODING')
     dispatch('LINTEN_FOR_SET_FINAL_NEWLINE')
     dispatch('LISTEN_FOR_NEW_TAB')
+    dispatch('LISTEN_FOR_VIEWER_SWAP')
     dispatch('LISTEN_FOR_CLOSE_TAB')
     dispatch('LISTEN_FOR_TAB_CYCLE')
     dispatch('LISTEN_FOR_SWITCH_TABS')

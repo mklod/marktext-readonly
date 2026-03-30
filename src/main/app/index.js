@@ -8,7 +8,7 @@ import { isChildOfDirectory } from 'common/filesystem/paths'
 import { isLinux, isOsx, isWindows } from '../config'
 import parseArgs from '../cli/parser'
 import { normalizeAndResolvePath } from '../filesystem'
-import { normalizeMarkdownPath } from '../filesystem/markdown'
+import { normalizeMarkdownPath, loadMarkdownFile } from '../filesystem/markdown'
 import { registerKeyboardListeners } from '../keyboard'
 import { selectTheme } from '../menu/actions/theme'
 import { dockMenu } from '../menu/templates'
@@ -201,7 +201,7 @@ class App {
     }
 
     // READ-ONLY MODE: Create system tray for instant re-open.
-    const iconPath = path.join(__dirname, '../static/logo-96px.png')
+    const iconPath = path.join(global.__static || path.join(__dirname, '../static'), 'logo-96px.png')
     this._tray = new Tray(iconPath)
     this._tray.setToolTip('MarkText Viewer')
     const trayMenu = Menu.buildFromTemplate([
@@ -629,7 +629,7 @@ class App {
   _startPipeServer () {
     const net = require('net')
     const PIPE_NAME = '\\\\.\\pipe\\marktext-viewer'
-    const { _openFilesCache, _windowManager } = this
+    const { _windowManager } = this
 
     // Clean up any stale pipe
     try {
@@ -646,25 +646,31 @@ class App {
         data += chunk.toString()
       })
       socket.on('end', () => {
-        console.log(`[PERF] pipe-received: ${Date.now()}`)
-        // Show window IMMEDIATELY before loading file
-        const win = _windowManager.getActiveWindow()
-        if (win) {
-          win.bringToFront()
+        const _pipeStart = Date.now()
+        // Show window IMMEDIATELY
+        const activeWin = _windowManager.getActiveWindow()
+        if (activeWin) {
+          activeWin.bringToFront()
         }
+
         const lines = data.trim().split('\n').filter(Boolean)
-        for (const line of lines) {
-          const filePath = line.trim()
-          if (filePath) {
-            const info = normalizeMarkdownPath(filePath)
-            if (info) {
-              _openFilesCache.push(info)
-            }
+        const filePath = lines[0] ? lines[0].trim() : null
+        if (!filePath) return
+
+        // Fast path: read file and swap content directly in renderer (no new tab/window)
+        const { preferences } = this._accessor
+        const eol = preferences.getPreferredEol()
+        const { autoGuessEncoding, trimTrailingNewline } = preferences.getAll()
+
+        loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
+          console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
+          if (activeWin && activeWin.browserWindow && !activeWin.browserWindow.isDestroyed()) {
+            // Send directly to renderer for instant content swap
+            activeWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
           }
-        }
-        if (_openFilesCache.length) {
-          this._openFilesToOpen()
-        }
+        }).catch(err => {
+          log.error('Pipe file load error:', err)
+        })
       })
     })
 

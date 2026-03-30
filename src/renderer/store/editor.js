@@ -656,6 +656,37 @@ const actions = {
     })
   },
 
+  // READ-ONLY MODE: Fast content swap via pipe — no new tab, no loading spinner.
+  LISTEN_FOR_VIEWER_SWAP ({ commit, state, dispatch }) {
+    ipcRenderer.on('mt::viewer-swap-content', (e, markdownDocument) => {
+      if (!markdownDocument) return
+      const { markdown, filename, pathname, encoding, lineEnding, adjustLineEndingOnSave, isMixedLineEndings } = markdownDocument
+      const { currentFile } = state
+
+      if (currentFile && currentFile.pathname === pathname) {
+        // Same file — do nothing
+        return
+      }
+
+      // Update current file state directly (no new tab creation)
+      if (currentFile) {
+        currentFile.markdown = markdown
+        currentFile.filename = filename
+        currentFile.pathname = pathname
+        currentFile.encoding = encoding
+        currentFile.lineEnding = lineEnding
+        currentFile.adjustLineEndingOnSave = adjustLineEndingOnSave
+        currentFile.isMixedLineEndings = isMixedLineEndings
+        currentFile.isSaved = true
+      }
+
+      // Tell the editor component to swap content
+      bus.$emit('viewer-set-markdown', { markdown, pathname, filename })
+      console.log('[PERF] viewer-swap-content done')
+      ipcRenderer.send('mt::perf-content-ready', Date.now())
+    })
+  },
+
   // Open a new tab, optionally with content.
   LISTEN_FOR_NEW_TAB ({ dispatch }) {
     ipcRenderer.on('mt::open-new-tab', (e, markdownDocument, options = {}, selected = true) => {
