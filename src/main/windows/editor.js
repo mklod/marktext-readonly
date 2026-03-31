@@ -1,5 +1,5 @@
 import path from 'path'
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { enable as remoteEnable } from '@electron/remote/main'
 import log from 'electron-log'
 import windowStateKeeper from 'electron-window-state'
@@ -181,19 +181,9 @@ class EditorWindow extends BaseWindow {
       })
     })
 
-    // READ-ONLY MODE: Hide last window to tray; close extra windows normally.
+    // READ-ONLY MODE: Close immediately. App stays alive in tray via pipe server.
     win.on('close', event => {
-      if (app.isQuitting) return // Allow quit
-
-      // Count visible windows
-      const { BrowserWindow: BWin } = require('electron')
-      const visibleWindows = BWin.getAllWindows().filter(w => w.isVisible() && !w.isDestroyed())
-      if (visibleWindows.length <= 1) {
-        // Last visible window — hide to tray
-        event.preventDefault()
-        win.hide()
-      }
-      // Extra windows just close normally (no preventDefault)
+      this.emit('window-close')
     })
 
     // The window is now destroyed.

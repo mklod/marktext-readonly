@@ -16,7 +16,7 @@ import { dockMenu } from '../menu/templates'
 // import registerSpellcheckerListeners from '../spellchecker'
 // READ-ONLY MODE: watchers not needed (no cleanup on window-all-closed).
 // import { watchers } from '../utils/imagePathAutoComplement'
-import { WindowType, WindowLifecycle } from '../windows/base'
+import { WindowType } from '../windows/base'
 import EditorWindow from '../windows/editor'
 import SettingWindow from '../windows/setting'
 
@@ -197,8 +197,7 @@ class App {
     if (_openFilesCache.length) {
       this._openFilesToOpen()
     } else {
-      // READ-ONLY MODE: Start hidden to tray (no blank window on launch)
-      this._createWarmWindow()
+      // READ-ONLY MODE: Start hidden to tray — pipe server will create windows on demand.
     }
 
     // READ-ONLY MODE: Create system tray for instant re-open.
@@ -642,37 +641,25 @@ class App {
   _startPipeServer () {
     const net = require('net')
     const PIPE_NAME = '\\\\.\\pipe\\marktext-viewer'
-    const { _windowManager } = this
 
-    // Clean up any stale pipe
-    try {
-      const testConn = net.connect(PIPE_NAME)
-      testConn.on('error', () => {})
-      testConn.destroy()
-    } catch (e) {
-      // ignore
-    }
+    // Simple ready-window pool: only contains windows that are FULLY loaded and hidden.
+    const readyPool = []
 
-    // Pre-warm a hidden window for instant second-file opens
-    let warmWindow = null
-    const preWarmWindow = () => {
-      setTimeout(() => {
-        if (!warmWindow) {
-          try {
-            warmWindow = this._createWarmWindow()
-            warmWindow.on('window-ready', () => {
-              console.log('[PERF] warm window READY')
-            })
-            console.log('[PERF] warm window pre-created')
-          } catch (e) {
-            log.error('Failed to pre-warm window:', e)
-          }
+    const fillPool = () => {
+      // Keep 1 ready window in reserve
+      if (readyPool.length >= 1) return
+      const editor = this._createWarmWindow()
+      editor.once('window-ready', () => {
+        // Only add to pool if still hidden (not consumed before ready)
+        if (editor._startHidden && editor.browserWindow && !editor.browserWindow.isDestroyed()) {
+          readyPool.push(editor)
+          console.log('[PERF] pool: window ready (' + readyPool.length + ' in pool)')
         }
-      }, 3000)
+      })
     }
 
-    // Start pre-warming after first window is ready
-    preWarmWindow()
+    // Fill pool after a delay so cold start isn't slowed
+    setTimeout(fillPool, 2000)
 
     const server = net.createServer(socket => {
       let data = ''
@@ -689,65 +676,38 @@ class App {
         const eol = preferences.getPreferredEol()
         const { autoGuessEncoding, trimTrailingNewline } = preferences.getAll()
 
-        // Find a hidden tray'd window (was shown before, now hidden) to reuse
-        let trayWin = null
-        for (const w of _windowManager.windows.values()) {
-          if (w.browserWindow && !w.browserWindow.isDestroyed() && !w.browserWindow.isVisible() && !w._startHidden) {
-            trayWin = w
+        // Grab a ready window from the pool
+        let win = null
+        while (readyPool.length > 0) {
+          const candidate = readyPool.shift()
+          if (candidate.browserWindow && !candidate.browserWindow.isDestroyed()) {
+            win = candidate
             break
           }
         }
 
-        if (trayWin && trayWin.browserWindow && !trayWin.browserWindow.isDestroyed()) {
-          // Fastest path: show tray'd window + swap content
-          trayWin.bringToFront()
+        if (win) {
+          // Fast path: load file, swap content, then show
           loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
-            console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
-            trayWin.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
-          }).catch(err => log.error('Pipe file load error:', err))
-        } else if (warmWindow && warmWindow.browserWindow && !warmWindow.browserWindow.isDestroyed() && warmWindow.lifecycle === WindowLifecycle.READY) {
-          // Fast path: load content into warm window FIRST, then show
-          console.log('[PERF] using warm window (lifecycle=' + warmWindow.lifecycle + ')')
-          const ww = warmWindow
-          warmWindow = null
-          loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
-            console.log(`[PERF] pipe-file-loaded: ${Date.now() - _pipeStart}ms`)
-            ww.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
-            // Show after content is sent
-            ww._startHidden = false
-            setTimeout(() => {
-              if (ww.browserWindow && !ww.browserWindow.isDestroyed()) {
-                ww.browserWindow.show()
-                ww.browserWindow.focus()
-              }
-            }, 100)
-          }).catch(err => log.error('Pipe file load error:', err))
-        } else if (warmWindow && warmWindow.browserWindow && !warmWindow.browserWindow.isDestroyed() && warmWindow.lifecycle === WindowLifecycle.LOADING) {
-          // Warm window exists but still loading — wait for it, then show with content
-          console.log('[PERF] warm window loading, queuing file')
-          const ww = warmWindow
-          warmWindow = null
-          ww.once('window-ready', () => {
-            loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
-              console.log(`[PERF] pipe-file-loaded-queued: ${Date.now() - _pipeStart}ms`)
-              ww.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
-              ww._startHidden = false
-              setTimeout(() => {
-                if (ww.browserWindow && !ww.browserWindow.isDestroyed()) {
-                  ww.browserWindow.show()
-                  ww.browserWindow.focus()
-                }
-              }, 100)
-            }).catch(err => log.error('Pipe file load error:', err))
+            console.log('[PERF] pipe-file-loaded: ' + (Date.now() - _pipeStart) + 'ms')
+            win.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+            win._startHidden = false
+            win.browserWindow.show()
+            win.browserWindow.focus()
+          }).catch(err => {
+            log.error('Pipe file load error:', err)
+            // Show anyway so user isn't stuck
+            win._startHidden = false
+            win.browserWindow.show()
           })
         } else {
-          // Slow path: create new window with file
-          console.log('[PERF] slow path: creating new window')
+          // No ready window — create one with the file (slow path, ~2s)
+          console.log('[PERF] no ready window, cold creating')
           this._createEditorWindow(null, [filePath])
         }
 
-        // Pre-warm another window for the next open
-        preWarmWindow()
+        // Refill pool for next open
+        setTimeout(fillPool, 1000)
       })
     })
 
@@ -759,7 +719,6 @@ class App {
       log.info('Pipe server listening on', PIPE_NAME)
     })
 
-    // Clean up on quit
     app.on('will-quit', () => {
       server.close()
     })
