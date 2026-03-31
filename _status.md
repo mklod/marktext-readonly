@@ -1,35 +1,32 @@
 # MarkText Viewer (Read-Only Mod) - Status
 
 ## Current Milestone
-Speed optimization — system tray mode implemented and benchmarked.
+COMPLETE — Read-only markdown viewer, fast and functional.
 
-## Completed This Session (2026-03-30)
-- Stubbed native modules (ced, keytar, native-keymap, fontmanager) at webpack compile time — eliminates runtime filesystem probing
-- Disabled spellcheck in webPreferences for faster renderer init
-- Implemented minimize-to-tray: window hides on close, app stays resident
-- Tray icon with Show/Quit context menu, double-click to show
-- Second-instance file opening works (existing MarkText single-instance support)
-- Benchmarked: cold start 1000ms, tray re-open ~750ms
-- Confirmed our build matches original MarkText speed (both ~1.2s cold)
+## Completed (2026-03-27 to 2026-03-30)
+- Converted MarkText to read-only viewer (contenteditable=false, no save prompts)
+- Stripped editing menus (Format, Paragraph removed; Edit=Copy+Find; File=Open+Export+Close)
+- Webpack compile-time stubs for native modules (no VS Build Tools needed)
+- System tray with named pipe server for instant file opening
+- Go launcher (marktext-open.exe, 1ms pipe send) replaces Electron second-instance
+- Ready-pool: pre-warmed hidden window for instant second-file open
+- Each file opens in its own window, no blank screens
+- Verified with automated tests + screenshots
 
-## Benchmark Results
-| Test | Time |
-|---|---|
-| Cold start (with file) | ~1000ms |
-| Tray re-open #1 | ~720ms |
-| Tray re-open #2 | ~789ms |
-| Original MarkText cold | ~1200ms |
+## Performance
+- Pipe launcher: 1ms
+- File load: 2-17ms
+- Window show (from pool): instant
+- Cold start: ~2-3s (Electron boot + Vue/Muya init)
 
-## Current Bottleneck
-Warm re-open is ~750ms because launching a second Electron process (just to pass the file path via single-instance IPC) costs ~600ms. Possible next steps:
-- File watcher / named pipe listener to avoid launching a second process
-- Custom protocol handler (marktext://) for instant file opening
-- Or accept ~750ms as Electron's floor and ship
+## Portable Install
+- `C:\tools\marktext-viewer\`
+- File association: `C:\tools\marktext-viewer\marktext-open.exe`
 
-## Next Immediate Task
-- Decide: accept 750ms or pursue named-pipe/protocol approach
-- Push tray changes to git
-- Build installer with tray support
+## Repo
+- https://github.com/mklod/marktext-readonly (develop branch)
 
-## Blockers
-- Electron's inherent startup cost (~600ms) is the hard floor for second-instance handoff
+## Next (if needed)
+- Custom app icon/name
+- Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
+- Installer with file association auto-setup
