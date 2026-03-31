@@ -687,16 +687,15 @@ class App {
         }
 
         if (win) {
-          // Fast path: load file, swap content, then show
+          // Fast path: load file into pooled window via standard tab mechanism
           loadMarkdownFile(filePath, eol, autoGuessEncoding, trimTrailingNewline).then(rawDocument => {
             console.log('[PERF] pipe-file-loaded: ' + (Date.now() - _pipeStart) + 'ms')
-            win.browserWindow.webContents.send('mt::viewer-swap-content', rawDocument)
+            win.browserWindow.webContents.send('mt::open-new-tab', rawDocument, {}, true)
             win._startHidden = false
             win.browserWindow.show()
             win.browserWindow.focus()
           }).catch(err => {
             log.error('Pipe file load error:', err)
-            // Show anyway so user isn't stuck
             win._startHidden = false
             win.browserWindow.show()
           })
