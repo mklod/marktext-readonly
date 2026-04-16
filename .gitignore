@@ -1,0 +1,6 @@
+build/
+marktext-develop/node_modules/
+marktext-develop/dist/
+marktext-develop/.cache/
+$null
+*.log
