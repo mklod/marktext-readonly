@@ -24,17 +24,13 @@ Fork of MarkText (Electron markdown editor) stripped down to a lightweight read-
 - `src/main/menu/templates/file.js` — Open/Export/Print/Close only
 - `src/main/contextMenu/editor/index.js` — Copy only
 
-### Native module stubs (webpack compile-time)
-- `src/stubs/ced.js` — UTF-8 stub
-- `src/stubs/keytar.js` — no-op credential storage
-- `src/stubs/native-keymap.js` — US keyboard stub
-- `src/stubs/fontmanager-redux.js` — empty font list
-- `.electron-vue/webpack.main.config.js` — alias stubs, exclude from externals
-- `.electron-vue/webpack.renderer.config.js` — fontmanager stub
-
 ### Speed: tray + named pipe + ready-pool
-- `src/main/app/index.js` — tray icon, named pipe server, ready-pool, don't quit on window-all-closed
+- `src/main/app/index.js` — tray icon, named pipe server, ready-pool, don't quit on window-all-closed, openFilesInNewWindow=true hardcoded
 - `launcher/main.go` — Go binary (2.3MB) sends file path to pipe in 1ms
+
+### Asar binary patches (deployed build only)
+- `dist/electron/renderer.js` — disableHtml=false, `<br>` renders bare element, fullwidth asterisk→regular
+- `dist/electron/renderer.*.css` — full-width editor, table styling, header borders
 
 ### Supporting changes
 - `src/main/menu/index.js` — null guards for removed menu items
@@ -44,16 +40,17 @@ Fork of MarkText (Electron markdown editor) stripped down to a lightweight read-
 - `src/main/globalSetting.js` — perf logging
 - `src/renderer/components/titleBar/index.vue` — "MarkText Viewer" title
 - `src/renderer/components/editorWithTabs/editor.vue` — viewer-swap handler
-- `src/renderer/store/preferences.js` — hideQuickInsertHint=true
+- `src/renderer/store/preferences.js` — hideQuickInsertHint=true, openFilesInNewWindow=true
 - `electron-builder.yml` — npmRebuild=false, buildDependenciesFromSource=false
+- `static/preference.json` — openFilesInNewWindow=true, startUpAction=blank
 
 ## Performance
 | Metric | Time |
 |---|---|
-| Go launcher → pipe send | 1ms |
-| File load from disk | 2-17ms |
+| Go launcher → pipe send | 1-2ms |
+| File load from disk | 2-50ms |
 | Pool window show with content | instant |
-| Cold start (first launch) | ~2-3s |
+| Cold start (first launch) | ~2.7s |
 
 ## Stages
 
@@ -70,21 +67,28 @@ Fork of MarkText (Electron markdown editor) stripped down to a lightweight read-
 - [x] Runtime guards for windowManager destroyed objects
 
 ### Stage 3: Speed Optimization — COMPLETE
-- [x] Benchmarked: our build matches original MarkText speed (~1.2s cold)
 - [x] System tray mode — app stays resident in background
 - [x] Named pipe server replaces Electron second-instance IPC
 - [x] Go launcher (1ms) replaces launching full Electron process (600ms)
 - [x] Ready-pool: pre-warmed hidden window for instant file opens
 - [x] Multi-window: each file opens in its own window, no blank screens
-- [x] Verified with automated tests + screenshot verification (3/3 runs pass)
 
 ### Stage 4: Ship — COMPLETE
-- [x] All changes pushed to git (10 commits on develop)
-- [x] Portable build at C:\tools\marktext-viewer\
-- [x] Installer build tested
+- [x] Portable build at C:\marktext-viewer\
+- [x] Windows file association via registry redirect
+- [x] Auto-start on login
 
-### Stage 5: Future Polish — TODO (if needed)
+### Stage 5: Table Rendering — COMPLETE
+- [x] Full-width editor area (tables fill window)
+- [x] `<br>` line breaks in table cells
+- [x] Hidden `<br>` tag markup (bare element rendering)
+- [x] Fullwidth asterisk normalization
+- [x] Solid header border, nowrap data cells
+
+### Stage 6: Polish — IN PROGRESS
+- [x] Force opened window to foreground (setAlwaysOnTop trick)
+- [x] Window remembers size/position (read window-state.json on pool show)
 - [ ] Custom app icon/name
 - [ ] Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 - [ ] Installer with automatic .md file association setup
-- [ ] Auto-start on login (so tray is always available)
+- [ ] Fix build toolchain (install Python, or create proper webpack stubs for native modules)

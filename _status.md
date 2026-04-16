@@ -80,9 +80,21 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
 - **Recommendation**: Use the working build from `D:\win10 clean install\marktext-viewer\` until build toolchain is fully set up.
 
 ## Repo
-- https://github.com/mklod/marktext-readonly (develop branch)
+- https://github.com/mklod/marktext-readonly (master branch)
 
 ## Session Log
+
+### 2026-04-15
+- **Table rendering fixes** via asar binary patching (no source rebuild needed):
+  - Patched `renderer.js`: flipped `disableHtml` default to `false` — enables `<br>` line breaks in table cells
+  - Patched `renderer.js`: `case "br"` now renders bare `<br>` element (no visible `<br>` tag text)
+  - Patched `renderer.js`: fullwidth asterisk U+FF0A → regular `*` at render time (eliminates CJK double-width spacing)
+  - Patched `renderer.css`: full-width editor area (`--editorAreaWidth: 100%`), `table-layout: auto`, 2.5px solid header border, `nowrap` on data cells, first column allows wrapping
+- **Foreground focus fix** — patched `main.js`: `bringToFront()` and pipe show use `setAlwaysOnTop(true)` → `focus()` → `setAlwaysOnTop(false)` after 100ms to bypass Windows focus-stealing prevention
+- **Window state persistence** — patched `main.js`: pipe-opened pool windows read `window-state.json` and apply saved bounds before showing
+- **Auto-start on login**: startup shortcut at `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\MarkText Viewer.lnk`
+- **Asar patch procedure**: extract with `npx asar extract`, modify files, repack with `npx asar pack` — no webpack/electron-builder needed
+- **Git**: initialized repo, pushed to `origin/master`
 
 ### 2026-04-02
 - Recovered working build from `D:\win10 clean install\marktext-viewer\` → deployed to `C:\marktext-viewer\`
@@ -100,8 +112,10 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
 - Ready-pool: pre-warmed hidden window for instant opens
 - Verified with automated tests + screenshots
 
-## Next
-- [ ] Auto-start on login (tray always available)
+## Next immediate task
+- Custom app icon/name
+
+## Backlog
 - [ ] Custom app icon/name
 - [ ] Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 - [ ] Installer with automatic file association setup
