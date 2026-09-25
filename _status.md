@@ -84,6 +84,14 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
 
 ## Session Log
 
+### 2026-09-25
+- **Fixed recurring crash dialog** "An unexpected error occurred in the main process — TypeError: Object has been destroyed" (chokidar unlink handler). Cause: file watchers leaked from natively-closed windows. Root cause is in CHANGELOG Build 2026-09-25--1336.
+  - Source fix in `src/main/filesystem/watcher.js`; asar patch script `patches/watcher-destroyed-window.js` (reusable, asserts exact matches).
+  - Deployed to `C:\marktext-viewer\resources\app.asar` (backup `app.asar.bak-2026-09-25`); tray instance restarted via Startup shortcut.
+- **Test harness recipe** (isolated from the live instance): copy `C:\marktext-viewer\*` except `resources\app.asar` to a scratch dir, add the candidate asar, and launch with `--user-data-dir=<scratch>\ud`. Env `MARKTEXT_ERROR_INTERACTION=1` sends main-process errors to `ud\logs\*\main.log` instead of the modal. Opening a second file in its own window needs `--new-window`. The live instance holds the pipe name, so the harness's pipe server errors harmlessly.
+  - **Seed `ud\window-state.json`** (550x350 at x=4570,y=1050) before launching. A blank profile centers windows on the ultrawide, right over the user's work.
+- Asar notes: `@electron/asar extract-file` on Windows needs backslash paths (`'dist\electron\main.js'`). A repacked asar is ~10 MB smaller than the Apr-15 one, but a header comparison shows identical content (only main.js differs).
+
 ### 2026-04-15
 - **Table rendering fixes** via asar binary patching (no source rebuild needed):
   - Patched `renderer.js`: flipped `disableHtml` default to `false` — enables `<br>` line breaks in table cells

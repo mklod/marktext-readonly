@@ -6,6 +6,27 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-09-25--1336
+
+### Changes
+- **Fixed main-process crash** `TypeError: Object has been destroyed` (error dialog pointing at `main.js:2:250188` / chokidar `index.js:581`). Hit 4x on 2026-09-25 alone.
+  - Root cause: read-only mode closes windows natively, so `Watcher.unwatchByWindowId()` ran after the BrowserWindow was destroyed; `w.win.id` threw, `windowManager` swallowed it, and the file watcher leaked. Every later cleanup then aborted on that stale entry, so leaks piled up. Deleting/renaming a file that had ever been open made the leaked `unlink` handler touch the dead window's `webContents`.
+  - Fix: capture window id at watch time (`winId`) and match on it in `unwatchByWindowId`; all watcher sends go through a `send()` guard that skips destroyed windows.
+  - Source: `src/main/filesystem/watcher.js`. Deployed as asar patch: `node patches/watcher-destroyed-window.js <extracted>/dist/electron/main.js` (asserts each of 11 sites matches exactly once).
+  - Backup of previous deployed asar: `C:\marktext-viewer\resources\app.asar.bak-2026-09-25`
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [x] Repro on unmodified app copy: open file → close window → delete file → identical crash stack
+>   - Notes: isolated copy + separate --user-data-dir; error logged via MARKTEXT_ERROR_INTERACTION=1
+> - [x] Same repro on patched copy (delete + atomic replace): no crash
+>   - Notes: root-cause fix alone (step 1) already passes; guards added on top
+> - [x] Two windows: close A, delete A's file, edit B → no crash, B still gets the "changed on disk" bar
+>   - Notes: proves B's watcher survives A's cleanup
+> - [x] Deployed asar hash == tested asar; tray restart silent, pipe listening, 0 visible windows
+> - [ ] Normal use for a day: no more "unexpected error in the main process" dialogs
+>   - Notes:
+
 ## Build 2026-04-15--2223
 
 ### Changes
