@@ -1,3 +1,4 @@
+// Last modified: 2026-09-25--1333
 import path from 'path'
 import fsPromises from 'fs/promises'
 import log from 'electron-log'
@@ -16,6 +17,14 @@ export const WATCHER_STABILITY_POLL_INTERVAL = 150
 const EVENT_NAME = {
   dir: 'mt::update-object-tree',
   file: 'mt::update-file'
+}
+
+// Watcher callbacks can fire (or resume after an await) once the window is gone;
+// touching `webContents` on a destroyed BrowserWindow throws in the main process.
+const send = (win, channel, ...args) => {
+  if (!win.isDestroyed()) {
+    win.webContents.send(channel, ...args)
+  }
 }
 
 const add = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTrailingNewline) => {
@@ -43,7 +52,7 @@ const add = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTraili
     } catch (err) {
       // Only notify user about opened files.
       if (type === 'file') {
-        win.webContents.send('mt::show-notification', {
+        send(win, 'mt::show-notification', {
           title: 'Watcher I/O error',
           type: 'error',
           message: err.message
@@ -51,7 +60,7 @@ const add = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTraili
         return
       }
     }
-    win.webContents.send(EVENT_NAME[type], {
+    send(win, EVENT_NAME[type], {
       type: 'add',
       change: file
     })
@@ -60,7 +69,7 @@ const add = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTraili
 
 const unlink = (win, pathname, type) => {
   const file = { pathname }
-  win.webContents.send(EVENT_NAME[type], {
+  send(win, EVENT_NAME[type], {
     type: 'unlink',
     change: file
   })
@@ -85,14 +94,14 @@ const change = async (win, pathname, type, endOfLine, autoGuessEncoding, trimTra
         pathname,
         data
       }
-      win.webContents.send('mt::update-file', {
+      send(win, 'mt::update-file', {
         type: 'change',
         change: file
       })
     } catch (err) {
       // Only notify user about opened files.
       if (type === 'file') {
-        win.webContents.send('mt::show-notification', {
+        send(win, 'mt::show-notification', {
           title: 'Watcher I/O error',
           type: 'error',
           message: err.message
@@ -116,7 +125,7 @@ const addDir = (win, pathname, type) => {
     files: []
   }
 
-  win.webContents.send('mt::update-object-tree', {
+  send(win, 'mt::update-object-tree', {
     type: 'addDir',
     change: directory
   })
@@ -126,7 +135,7 @@ const unlinkDir = (win, pathname, type) => {
   if (type === 'file') return
 
   const directory = { pathname }
-  win.webContents.send('mt::update-object-tree', {
+  send(win, 'mt::update-object-tree', {
     type: 'unlinkDir',
     change: directory
   })
@@ -148,6 +157,9 @@ class Watcher {
     const usePolling = isOsx ? true : this._preferences.getItem('watcherUsePolling')
 
     const id = getUniqueId()
+    // Capture the id now: `win.id` throws once the BrowserWindow is destroyed, and in
+    // read-only mode windows are closed natively before unwatchByWindowId() runs.
+    const winId = win.id
     const watcher = chokidar.watch(watchPath, {
       ignored: (pathname, fileInfo) => {
         // This function is called twice, once with a single argument (the path),
@@ -187,7 +199,7 @@ class Watcher {
 
     watcher
       .on('add', async pathname => {
-        if (!await this._shouldIgnoreEvent(win.id, pathname, type, usePolling)) {
+        if (!await this._shouldIgnoreEvent(winId, pathname, type, usePolling)) {
           const { _preferences } = this
           const eol = _preferences.getPreferredEol()
           const { autoGuessEncoding, trimTrailingNewline } = _preferences.getAll()
@@ -195,7 +207,7 @@ class Watcher {
         }
       })
       .on('change', async pathname => {
-        if (!await this._shouldIgnoreEvent(win.id, pathname, type, usePolling)) {
+        if (!await this._shouldIgnoreEvent(winId, pathname, type, usePolling)) {
           const { _preferences } = this
           const eol = _preferences.getPreferredEol()
           const { autoGuessEncoding, trimTrailingNewline } = _preferences.getAll()
@@ -239,7 +251,7 @@ class Watcher {
             enospcReached = true
             log.warn('inotify limit reached: Too many file descriptors are opened.')
 
-            win.webContents.send('mt::show-notification', {
+            send(win, 'mt::show-notification', {
               title: 'inotify limit reached',
               type: 'warning',
               message: 'Cannot watch all files and file changes because too many file descriptors are opened.'
@@ -264,6 +276,7 @@ class Watcher {
 
     this.watchers[id] = {
       win,
+      winId,
       watcher,
       pathname: watchPath,
       type,
@@ -297,7 +310,7 @@ class Watcher {
     const watchIds = []
     for (const id of Object.keys(this.watchers)) {
       const w = this.watchers[id]
-      if (w.win.id === windowId) {
+      if (w.winId === windowId) {
         watchers.push(w.watcher)
         watchIds.push(id)
       }
