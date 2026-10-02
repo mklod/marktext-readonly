@@ -1,4 +1,4 @@
-// Last modified: 2026-10-02--0210
+// Last modified: 2026-10-02--1350
 // Asar patch: MarkText Viewer reader mods (see patches/viewer-mod/).
 //   - renderer.js: reload silently when the file changes on disk, keep scroll
 //     position, clear stale "changed/removed on disk" notices on reload
@@ -77,6 +77,13 @@ patchFile(path.join(dir, 'main.js'), [
   [
     'T.setSheetOffset(U),u.manage(T),',
     `T.setSheetOffset(U),${MOD_MAIN}.manage(T,this._startHidden),`
+  ],
+  // Pre-warmed window path: open the doc the normal way (_doOpenTab), which also
+  // starts the file watcher and records the recent doc. The April pipe code only
+  // sent it to the renderer, so double-clicked docs never got live updates.
+  [
+    'd.browserWindow.webContents.send("mt::open-new-tab",t,{},!0),d._startHidden=!1,',
+    'd._doOpenTab(t,{},!0),d._startHidden=!1,'
   ],
   // Pre-warmed window path: replaces the 2026-04-15 "apply window-state.json" IIFE.
   [
