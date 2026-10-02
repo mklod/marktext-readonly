@@ -1,0 +1,113 @@
+/* MarkText Viewer mods — loaded after renderer.css by dist/electron/index.html
+ * Last modified: 2026-10-02--0123
+ * Installed by patches/viewer-mods.js. */
+
+/* === Table / width overrides (2026-04-15) ===
+ * Originally appended to renderer.css without closing braces, which made the
+ * browser drop everything after the first rule. Restored here intact. */
+
+/* Full-width editor area */
+:root {
+  --editorAreaWidth: 100% !important;
+}
+.editor-component,
+.editor-wrapper,
+.ag-editor-container,
+.ProseMirror,
+section[data-role="editor"],
+#ag-editor-id {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+/* Dropped from the 2026-04-15 block: `.editor-component { padding: 20px 48px;
+ * box-sizing: border-box }` breaks mouse drag-selection (tested 2026-10-02), and it
+ * never applied before anyway because of the missing braces. */
+
+/* Tables: fill available width, auto column sizing */
+table {
+  width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: collapse !important;
+}
+table th,
+table td {
+  padding: 6px 12px !important;
+  vertical-align: middle !important;
+}
+/* Solid visible border under header row */
+table thead {
+  border-bottom: 2.5px solid currentColor !important;
+}
+table thead th {
+  white-space: nowrap !important;
+  font-weight: 600 !important;
+  border-bottom: none !important;
+}
+/* Data cells: prevent wrapping for compact numeric columns */
+table tbody td {
+  white-space: nowrap !important;
+}
+/* First column: allow natural wrapping for longer label text */
+table tbody td:first-child {
+  white-space: normal !important;
+  line-height: 1.35 !important;
+}
+
+/* Hide <br> tag markup in table cells — show only the line break */
+td .ag-html-tag,
+th .ag-html-tag {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+td .ag-html-tag br,
+th .ag-html-tag br {
+  font-size: 16px !important;
+  line-height: normal !important;
+}
+
+/* === Title bar: Windows accent colour while focused ===
+ * viewer-mod.js sets --mtAccent (Settings accent colour) and adds
+ * .mt-accent-titlebar when "Show accent color on title bars" is enabled. */
+.mt-accent-titlebar .title-bar.active {
+  background: var(--mtAccent) !important;
+  color: #fff !important;
+}
+.mt-accent-titlebar .title-bar.active .title,
+.mt-accent-titlebar .title-bar.active .title:hover,
+.mt-accent-titlebar .title-bar.active .frameless-titlebar-menu {
+  color: #fff !important;
+}
+.mt-accent-titlebar .title-bar.active .frameless-titlebar-button svg {
+  fill: #fff !important;
+}
+.mt-accent-titlebar .title-bar.active .frameless-titlebar-minimize:hover,
+.mt-accent-titlebar .title-bar.active .frameless-titlebar-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+.title-bar .frameless-titlebar-close:hover {
+  background-color: #e81123 !important;
+}
+.title-bar .frameless-titlebar-close:hover svg {
+  fill: #fff !important;
+}
+
+/* === Reader: no word/char/paragraph counter, no floating format bar === */
+.title-bar .word-count {
+  display: none !important;
+}
+.ag-format-picker,
+.ag-format-picker-container {
+  display: none !important;
+}
+
+/* Ctrl+drag highlights (viewer only, never written to the file). */
+#ag-editor-id .mt-hl {
+  background: rgba(255, 214, 10, 0.38);
+  color: inherit;
+  border-radius: 2px;
+}
+
+/* Checkboxes are the one interactive element left in the document. */
+#ag-editor-id input.ag-task-list-item-checkbox {
+  cursor: pointer;
+}
