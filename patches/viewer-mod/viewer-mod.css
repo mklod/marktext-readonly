@@ -39,19 +39,12 @@ table thead {
   border-bottom: 2.5px solid currentColor !important;
 }
 table thead th {
-  white-space: nowrap !important;
   font-weight: 600 !important;
   border-bottom: none !important;
 }
-/* Data cells: prevent wrapping for compact numeric columns */
-table tbody td {
-  white-space: nowrap !important;
-}
-/* First column: allow natural wrapping for longer label text */
-table tbody td:first-child {
-  white-space: normal !important;
-  line-height: 1.35 !important;
-}
+/* Dropped from the 2026-04-15 block: `table tbody td { white-space: nowrap }`
+ * (+ a first-column exception). It pushes prose tables off the right edge
+ * (seen 2026-10-02 in CalibReader/ASO_2026-10-01.md) and never applied before. */
 
 /* Hide <br> tag markup in table cells — show only the line break */
 td .ag-html-tag,

@@ -1,7 +1,8 @@
-// Last modified: 2026-10-02--0123
+// Last modified: 2026-10-02--0210
 // Asar patch: MarkText Viewer reader mods (see patches/viewer-mod/).
 //   - renderer.js: reload silently when the file changes on disk, keep scroll
 //     position, clear stale "changed/removed on disk" notices on reload
+//   - main.js: cascade new doc windows, remember size/position (viewer-mod-main.js)
 //   - index.html: load viewer-mod.css / viewer-mod.js after the renderer bundle
 //   - renderer.<hash>.css: remove the 2026-04-15 override block (it had no closing
 //     braces); a repaired copy lives in viewer-mod.css
@@ -58,6 +59,32 @@ patchFile(path.join(dir, 'renderer.js'), [
   ]
 ])
 
+// --- main.js: window placement / remembered bounds (viewer-mod-main.js) -------
+// Expects main.js with watcher-destroyed-window.js already applied (deployed base).
+const MOD_MAIN = 'require(require("path").join(__dirname,"viewer-mod-main.js"))'
+patchFile(path.join(dir, 'main.js'), [
+  // Fresh-window path: cascade/remembered bounds instead of electron-window-state's.
+  [
+    '{x:h,y:p,width:f,height:m}=(e=>{const{bounds:t,workArea:n}=i.screen.getPrimaryDisplay(),r=M?t:n;',
+    `{x:h,y:p,width:f,height:m}=${MOD_MAIN}.initialBounds((e=>{const{bounds:t,workArea:n}=i.screen.getPrimaryDisplay(),r=M?t:n;`
+  ],
+  [
+    '{x:o,y:s,width:a,height:l}})(u),g=Object.assign({x:h,y:p,width:f,height:m},N,s);',
+    '{x:o,y:s,width:a,height:l}})(u),!1===s.show),g=Object.assign({x:h,y:p,width:f,height:m},N,s);'
+  ],
+  // Saving moves to viewer-mod-main (also stops hidden pre-warmed windows from
+  // overwriting the remembered spot when they close on quit).
+  [
+    'T.setSheetOffset(U),u.manage(T),',
+    `T.setSheetOffset(U),${MOD_MAIN}.manage(T,this._startHidden),`
+  ],
+  // Pre-warmed window path: replaces the 2026-04-15 "apply window-state.json" IIFE.
+  [
+    '(()=>{try{const ws=JSON.parse(require("fs").readFileSync(require("path").join(require("electron").app.getPath("userData"),"window-state.json"),"utf8"));d.browserWindow.setBounds({x:ws.x,y:ws.y,width:ws.width,height:ws.height})}catch(e){}})(),d.browserWindow.show(),',
+    `${MOD_MAIN}.place(d.browserWindow),d.browserWindow.show(),`
+  ]
+])
+
 // --- index.html ----------------------------------------------------------------
 {
   const file = path.join(dir, 'index.html')
@@ -96,7 +123,7 @@ patchFile(path.join(dir, 'renderer.js'), [
 }
 
 // --- mod files -----------------------------------------------------------------
-for (const f of ['viewer-mod.js', 'viewer-mod.css']) {
+for (const f of ['viewer-mod.js', 'viewer-mod.css', 'viewer-mod-main.js']) {
   fs.copyFileSync(path.join(modDir, f), path.join(dir, f))
   console.log(`installed ${f}`)
 }
