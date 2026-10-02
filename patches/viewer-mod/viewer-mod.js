@@ -1,5 +1,5 @@
 // MarkText Viewer mods — reader behaviour, checkbox toggling, accent title bar.
-// Last modified: 2026-10-02--0123
+// Last modified: 2026-10-02--1325
 // Loaded by dist/electron/index.html after renderer.js (nodeIntegration is on).
 // Installed by patches/viewer-mods.js.
 ;(function () {
@@ -140,7 +140,9 @@
     } catch (err) {
       return notify(`Checkbox not saved: ${err.message}`)
     }
-    // Show the new state now; the file watcher reloads the document ~1 s later.
+    // Show the new state now (muya draws the tick from the ag-checkbox-checked class,
+    // not from `checked`); the file watcher reloads the document ~1-2 s later.
+    cb.classList.toggle('ag-checkbox-checked', want)
     setTimeout(() => { cb.checked = want }, 0)
   }
 
@@ -299,7 +301,8 @@
       if (e.type === 'click') toggleTask(cb, !cb.checked)
     }
   }
-  for (const type of ['mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']) {
+  // mouseover/mouseout: muya opens its link/footnote hover tools from these.
+  for (const type of ['mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'mouseover', 'mouseout']) {
     window.addEventListener(type, onMouse, true)
   }
 

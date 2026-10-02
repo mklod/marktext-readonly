@@ -1,5 +1,5 @@
 /* MarkText Viewer mods — loaded after renderer.css by dist/electron/index.html
- * Last modified: 2026-10-02--0123
+ * Last modified: 2026-10-02--1325
  * Installed by patches/viewer-mods.js. */
 
 /* === Table / width overrides (2026-04-15) ===
@@ -84,12 +84,17 @@ th .ag-html-tag br {
   fill: #fff !important;
 }
 
-/* === Reader: no word/char/paragraph counter, no floating format bar === */
+/* === Reader: no word/char/paragraph counter, no muya floating tools ===
+ * .ag-float-wrapper hosts every muya popup (format bar, link/footnote hover
+ * tools, image/table/emoji/code pickers) — all editing UI. */
 .title-bar .word-count {
   display: none !important;
 }
+.ag-float-wrapper,
 .ag-format-picker,
-.ag-format-picker-container {
+.ag-format-picker-container,
+.ag-link-tools,
+.ag-footnote-tool {
   display: none !important;
 }
 
