@@ -6,6 +6,37 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-02--0212
+
+### Changes
+- **Title bar = native Win10 look**: painted in the Settings accent colour (registry `DWM\AccentColor`, `#018574`) while focused, white text/icons, red close hover; dark when unfocused. Follows the "accent on title bars" setting and theme changes. (Electron's `getAccentColor()` returns DWM's blended `#017b6b`, so it is only a fallback.)
+- **Word/char/paragraph counter removed** from the title bar.
+- **Reader behaviour**: clicks no longer place muya's cursor, so no `**`/`#`/link syntax appears, nothing jumps, and the table/image/code tools and floating format bar never show. Drag-select + Ctrl+C still work.
+- **Ctrl+drag highlights** text (viewer only, never written); Ctrl+click a highlight removes it; highlights survive reloads. **Ctrl+click opens links** (handled directly, no syntax reveal).
+- **Checkboxes save to the file**: a click flips exactly that one `[ ]`↔`[x]` line. Refuses (with a notice, file untouched) when the page's checkboxes can't be matched 1:1 with the file's task lines.
+- **Live update**: files changed on disk (Claude Code edits, checkbox ticks) reload silently, keep scroll position, and clear stale "changed/removed on disk" bars.
+- **Window layering like SumatraPDF**: each new doc opens one title bar (32 px) down/right of the most recently used viewer window, same size; slides right when there's no room below; wraps to the remembered spot at the right edge.
+- **Remembered size/position** saved on every move/resize/(un)maximise and on close, not only on close, so restarts/crashes keep it; hidden pre-warmed windows never overwrite it.
+- **Repaired 2026-04-15 CSS** (it had no closing braces, so only its first rule ever applied). Dropped two of its rules in the process: `.editor-component` padding (breaks drag-selection) and table-cell `nowrap` (pushed prose tables off-screen).
+- Patch files: `patches/viewer-mods.js` (asserts every replacement matches once) + `patches/viewer-mod/{viewer-mod.js, viewer-mod.css, viewer-mod-main.js}`. Applies on top of `watcher-destroyed-window.js`.
+- Backups: `app.asar.bak-2026-10-02` (pre-mods, watcher fix only), `app.asar.bak-2026-10-02b` (first mod deploy, before layering).
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [x] Automated (test copy over CDP, 34 checks): accent bar focused/unfocused, counter hidden, bold click changes nothing (fails on unmodified build = valid test), drag-select works, no format bar, Ctrl+drag highlight + survives reload + Ctrl+click removes, checkbox flips exactly one line and restores byte-for-byte, quoted task OK / fenced fake task ignored / mismatch refused, live edit reload keeps scroll, links plain vs Ctrl+click, table CSS, 7-window cascade incl. slide + wrap on both open paths, save-on-move, survives kill
+> - [ ] Click into a viewer window: title bar turns teal; click elsewhere: goes dark
+>   - Notes:
+> - [ ] Tick/untick a box in `CalibReader\release_todo.md`; Claude Code / Obsidian see the change
+>   - Notes:
+> - [ ] Ctrl+drag to highlight a sentence; Ctrl+click it to remove
+>   - Notes:
+> - [ ] Keep a doc open while a CC session edits it: updates in place, scroll stays
+>   - Notes:
+> - [ ] Open 3 docs: they fan out from where you last left a window; move one, close all, open one: it's back where you moved it
+>   - Notes:
+> - [ ] Wide tables (e.g. ASO doc) wrap instead of running off the right edge
+>   - Notes:
+
 ## Build 2026-09-25--1336
 
 ### Changes

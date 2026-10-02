@@ -84,6 +84,27 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
 
 ## Session Log
 
+### 2026-10-02
+- **Big viewer-mod build deployed** (CHANGELOG Build 2026-10-02--0212):
+  - accent-colour title bar, no word counter;
+  - true reader clicks (no syntax reveal, no edit UI);
+  - Ctrl+drag highlights; Ctrl+click opens links;
+  - checkboxes save the single line to the file;
+  - silent live reload keeping scroll;
+  - Sumatra-style window layering;
+  - size/position saved on every move.
+- **How mods ship now:** `node patches/viewer-mods.js <extracted-asar>` on the watcher-fixed base, which adds `viewer-mod.{js,css}` (renderer) and `viewer-mod-main.js` (main). Renderer/main bundles only get small anchored patches. `marktext-develop/src` is NOT updated for these (build toolchain still broken); `patches/` is the source of truth.
+- **Key decisions:**
+  - Checkbox writes flip one character in the file. It never uses muya's save, which re-serialises and can reformat the whole doc. It refuses when the page and the file can't be matched 1:1.
+  - The accent comes from the registry (`DWM\AccentColor` + `ColorPrevalence`), not Electron's `getAccentColor()`, which returns DWM's blended colour.
+  - Cascade: +32/+32, then slide right only (tall windows have about 1 vertical step on the 1440 px screen), then wrap to the remembered spot.
+- **Found & fixed:** the 2026-04-15 CSS override block never closed its braces, so it was mostly dead. Repaired it in `viewer-mod.css`, minus two rules: `.editor-component` padding breaks drag-selection, and td `nowrap` pushed tables off-screen.
+- **Test tooling** (scratch, documented here for reuse):
+  - CDP-driven test copy: launch with `--remote-debugging-port=9333`, drive it with `Input.dispatchMouseEvent` and `Runtime.evaluate`.
+  - The pre-warmed (pipe) path can only be tested by renaming the pipe in the test copy (`marktext-viewer-test`). Never ship that build.
+  - Gotchas: Chromium flips a checkbox's `checked` BEFORE click handlers run. App encoding is reported as `utf-8`. Bash heredocs in this harness mangle `\\`, so write JS test files with the Write tool.
+- Window state answer for the user: before this build it saved one shared rect, only on close; now it saves on every move as well.
+
 ### 2026-09-25
 - **Fixed recurring crash dialog** "An unexpected error occurred in the main process — TypeError: Object has been destroyed" (chokidar unlink handler). Cause: file watchers leaked from natively-closed windows. Root cause is in CHANGELOG Build 2026-09-25--1336.
   - Source fix in `src/main/filesystem/watcher.js`; asar patch script `patches/watcher-destroyed-window.js` (reusable, asserts exact matches).
