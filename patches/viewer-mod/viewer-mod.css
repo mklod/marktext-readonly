@@ -1,5 +1,5 @@
 /* MarkText Viewer mods — loaded after renderer.css by dist/electron/index.html
- * Last modified: 2026-10-02--1325
+ * Last modified: 2026-10-02--1408
  * Installed by patches/viewer-mods.js. */
 
 /* === Table / width overrides (2026-04-15) ===
@@ -96,6 +96,13 @@ th .ag-html-tag br {
 .ag-link-tools,
 .ag-footnote-tool {
   display: none !important;
+}
+
+/* Unknown :codes: (e.g. the ":04:" inside a time like 14:04:55) are drawn as plain
+ * text instead of muya's "invalid emoji" colour. Real codes like :smile: still
+ * render as emoji (they carry data-emoji, not .ag-warn). */
+span.ag-warn.ag-emoji-marked-text {
+  color: inherit !important;
 }
 
 /* Ctrl+drag highlights (viewer only, never written to the file). */
