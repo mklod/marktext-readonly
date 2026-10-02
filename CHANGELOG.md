@@ -6,6 +6,18 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-02--1350
+
+### Changes
+- **Live updates now work for double-clicked docs.** The April pipe/pre-warmed-window code sent the doc straight to the renderer and never started a file watcher, so docs opened the normal way (double-click → `marktext-open.exe` → pipe) never saw external edits. Only windows opened other ways did, which is all the earlier tests covered. The pipe path now opens through `EditorWindow._doOpenTab`, which starts the watcher and also records the doc in recent documents.
+- New regression test `pipelive.mjs` (pipe path + Claude-style write-then-rename edits on an `L:` file). It failed 2/4 before the fix and passes 4/4 after. Window-layering suite re-passes.
+- Backup of the previous deploy: `app.asar.bak-2026-10-02d`.
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [ ] Double-click-opened demo doc: a Claude Code paste appears within ~1–2 s with no prompt
+>   - Notes:
+
 ## Build 2026-10-02--1325
 
 ### Changes
