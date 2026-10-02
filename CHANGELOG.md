@@ -6,6 +6,22 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-02--1325
+
+### Changes
+- **Checkbox tick shows instantly.** muya draws the tick from the `ag-checkbox-checked` class, not the `checked` property. So a click looked dead until the ~1–2 s reload, and a second click un-ticked it (net no change, which is what the user hit on `demo/live-demo.md`). The class is now toggled on click.
+- **No link hover pop-up.** muya's mouseover/mouseout no longer reach it, and every `.ag-float-wrapper` popup is hidden (link/footnote hover tools; format bar; image/table/emoji/code pickers). Ctrl+click still opens links.
+- Backup of the previous deploy: `app.asar.bak-2026-10-02c`.
+- Test-harness note: two main-process hangs in the test copy happened only while CDP polled `/json/list` during window creation. 0/8 without the debug port, on both this build and the pre-mod build, so it's not a viewer bug.
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [x] Automated: tick drawn ≤150 ms after click (fails on previous build), hover link shows no pop-up, plus the full reader + edge-case suites (26 checks)
+> - [ ] Tick a box in `demo/live-demo.md`: tick appears immediately, file gets `[x]`
+>   - Notes:
+> - [ ] Hover a link: no pop-up; Ctrl+click still opens it
+>   - Notes:
+
 ## Build 2026-10-02--0212
 
 ### Changes
