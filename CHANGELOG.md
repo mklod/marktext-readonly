@@ -6,6 +6,17 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-02--1408
+
+### Changes
+- **Times like `14:04:55` no longer show a blue `04`.** muya parses `:[a-z0-9_+-]+:` as an emoji code and paints unknown codes in `--deleteColor`; `viewer-mod.css` now draws them as plain text. Real codes like `:smile:` still render as emoji. Test `emojitest.mjs` failed before the fix (`rgb(64,158,255)`) and passes after.
+- Backup of the previous deploy: `app.asar.bak-2026-10-02e`.
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [ ] The Live Edit headings in `demo/live-demo.md` show `14:04:55` all in one colour
+>   - Notes:
+
 ## Build 2026-10-02--1350
 
 ### Changes

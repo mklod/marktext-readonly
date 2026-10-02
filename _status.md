@@ -104,6 +104,20 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
   - The pre-warmed (pipe) path can only be tested by renaming the pipe in the test copy (`marktext-viewer-test`). Never ship that build.
   - Gotchas: Chromium flips a checkbox's `checked` BEFORE click handlers run. App encoding is reported as `utf-8`. Bash heredocs in this harness mangle `\\`, so write JS test files with the Write tool.
 - Window state answer for the user: before this build it saved one shared rect, only on close; now it saves on every move as well.
+- **Afternoon fixes (user live-tested with `demo/live-demo.md`)**, each with a failing-first test:
+  - Checkbox tick drawn instantly. muya draws it from the `ag-checkbox-checked` class, so the user's second click had been undoing the first.
+  - No link hover pop-up: all `.ag-float-wrapper` popups are hidden.
+  - **Live updates never worked for double-clicked docs.** The April pipe path never started a file watcher; it now opens through `_doOpenTab`.
+  - Unknown `:codes:` such as the `:04:` in `14:04:55` are no longer coloured.
+  - User confirmed: live edits appear in real time, layering and remembered position work, Ctrl+drag highlight and Ctrl+click links work.
+- **Test-harness lessons:**
+  - Cover the double-click (pipe) path explicitly (`pipelive.mjs`); the default launch path is a different code path.
+  - Test-copy hangs only happened while CDP polled `/json/list` during window creation (0/8 without the debug port).
+  - Don't redirect the app's stdout in `launch.ps1`: the child inherits the pipes and `execFileSync` waits forever.
+- **Deploy recipe:**
+  - Back up the asar (`.bak-<date><letter>`), kill the tray, copy, relaunch via the Startup `.lnk`, then poll the pipe.
+  - Reopen the user's open docs (minimised ones first, then re-minimise) through `marktext-open.exe`.
+  - Window titles give only basenames, so keep a name→path map.
 
 ### 2026-09-25
 - **Fixed recurring crash dialog** "An unexpected error occurred in the main process — TypeError: Object has been destroyed" (chokidar unlink handler). Cause: file watchers leaked from natively-closed windows. Root cause is in CHANGELOG Build 2026-09-25--1336.
