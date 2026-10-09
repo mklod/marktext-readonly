@@ -6,6 +6,31 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-09--1318
+
+### Changes
+- **Checkbox on a stale page now refreshes it.** The user hit *"Checkbox not saved: the file has 89 task items but the page shows 88"* on `CalibReader\LAUNCH_TIMELINE.md`. The file had been modified at 12:43:29, seconds before the click (another session added a task), and the page was out of date. The safeguard correctly refused to write.
+  - Now a mismatch reloads the page from disk and says *"This page was out of date and has been refreshed. Click the box again."*
+  - If it still can't be matched (task-like lines the viewer can't map, e.g. indented code), it shows a clear permanent message instead of looping.
+  - Checkbox notices clear on the next reload.
+- **Safety net for dead file watchers.** While a window is visible, the file's mtime/size is checked every 3 s and on focus; if it changed and the watcher didn't reload within 2.5 s, the page reloads itself. Network-drive watchers can die silently after sleep/reconnects (this viewer had been running since the Oct 6 boot).
+- Reload uses MarkText's own loader: `main.js` exposes it as `global.__mtLoadMarkdownFile`, `viewer-mod-main.js` serves `viewer-mod:reload`, and the reply is the watcher's normal `mt::update-file` event, so scroll and highlights are kept.
+- `patches/deploy-live.ps1`: tested deploy + restore of the user's open windows (replaces the ad-hoc deploy snippets).
+- Backup of the previous deploy: `app.asar.bak-2026-10-09a`.
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [x] `staletests.mjs` (test copy, watcher killed):
+>   - stale click writes nothing, the page refreshes 3→4 boxes, "click again" notice;
+>   - second click ticks the right line;
+>   - with the safety net paused the edit does NOT arrive (proves the watcher is dead); unpaused it arrives in 4.4 s;
+>   - unmatchable doc gets the permanent message, file untouched.
+> - [x] Regression on the deploy build: reader, links/edge, emoji, double-click live updates, window layering — all pass.
+> - [ ] Tick boxes in `LAUNCH_TIMELINE.md` while a Claude Code session is editing it
+>   - Notes:
+> - [ ] Leave a doc open for a long time (overnight / after sleep); edits from Claude Code still appear within a few seconds
+>   - Notes:
+
 ## Build 2026-10-02--1408
 
 ### Changes

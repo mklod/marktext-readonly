@@ -84,6 +84,12 @@ To have the tray icon ready at boot, add a shortcut to `C:\marktext-viewer\MarkT
 
 ## Session Log
 
+### 2026-10-09
+- User hit "Checkbox not saved: the file has 89 task items but the page shows 88" (LAUNCH_TIMELINE.md). The page was stale: the file was modified 6 s before the screenshot, and a fresh window counted 89/89. Fixed with a refresh-on-mismatch plus a 3 s mtime safety net for dead watchers (CHANGELOG Build 2026-10-09--1318).
+- Root cause stayed ambiguous (racing an edit vs a dead SMB watcher), so both paths are now covered. Watcher death is simulated in tests with `ipcMain.emit('watcher-unwatch-all-by-id', id)` via @electron/remote.
+- **Deploy with `patches/deploy-live.ps1 -Asar <tested asar> -BackupSuffix <date><letter>`.** It restores open windows, minimised ones re-minimised.
+- **Test-copy rule:** never open a second window via `--new-window` while `--remote-debugging-port` is on; it intermittently hangs the main process (3/3 hangs had both). Production (no debug port) showed 0/12. Launch each test doc separately (`regress.sh` in scratch).
+
 ### 2026-10-02
 - **Big viewer-mod build deployed** (CHANGELOG Build 2026-10-02--0212):
   - accent-colour title bar, no word counter;
