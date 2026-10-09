@@ -1,4 +1,4 @@
-// Last modified: 2026-10-09--1308
+// Last modified: 2026-10-09--1543
 // Asar patch: MarkText Viewer reader mods (see patches/viewer-mod/).
 //   - renderer.js: reload silently when the file changes on disk, keep scroll
 //     position, clear stale "changed/removed on disk" notices on reload
@@ -51,6 +51,14 @@ patchFile(path.join(dir, 'renderer.js'), [
   [
     'Be.Z.$emit("file-changed",{id:t,markdown:d,cursor:i,renderCursor:!0,history:n})}},SET_PATHNAME',
     'Be.Z.$emit("file-changed",{id:t,markdown:d,cursor:i,renderCursor:!1,keepScroll:!0,history:n})}},SET_PATHNAME'
+  ],
+  // muya inline math: use the Pandoc/Obsidian/GitHub rule so prices don't turn
+  // into formulas ("**now $11.99.** ... **under $5K**" became math and lost its bold).
+  // Opening $ must be followed by a non-space, closing $ preceded by a non-space
+  // and not followed by a digit (or another $).
+  [
+    String.raw`inline_math:/^(\$)([^\$]*?[^\$\\])(\\*)\1(?!\1)/`,
+    String.raw`inline_math:/^(\$)(?![\s$])([^\$]*?[^\$\\\s])(\\*)\1(?![\$\d])/`
   ],
   // editor.vue handleFileChange: restore scrollTop after re-rendering when asked.
   [
