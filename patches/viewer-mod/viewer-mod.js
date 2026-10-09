@@ -1,5 +1,5 @@
 // MarkText Viewer mods — reader behaviour, checkbox toggling, accent title bar.
-// Last modified: 2026-10-02--1325
+// Last modified: 2026-10-09--1308
 // Loaded by dist/electron/index.html after renderer.js (nodeIntegration is on).
 // Installed by patches/viewer-mods.js.
 ;(function () {
@@ -53,6 +53,63 @@
     }
     return null
   }
+
+  // --- Reload from disk -------------------------------------------------------
+  // Main re-reads the file with MarkText's own loader and replies with the same
+  // 'mt::update-file' change the file watcher sends (-> LOAD_CHANGE, scroll kept).
+  const { ipcRenderer } = require('electron')
+  const reloadFromDisk = () => {
+    const store = getStore()
+    const file = store && store.state.editor.currentFile
+    if (!file || !file.pathname) return Promise.resolve(false)
+    const { endOfLine, autoGuessEncoding, trimTrailingNewline } = store.state.preferences
+    const eol = endOfLine === 'lf' ? 'lf' : (endOfLine === 'crlf' || process.platform === 'win32' ? 'crlf' : 'lf')
+    return ipcRenderer.invoke('viewer-mod:reload', { pathname: file.pathname, eol, autoGuessEncoding, trimTrailingNewline })
+      .catch(err => { console.error('[viewer-mod] reload failed', err); return false })
+  }
+
+  // Resolves after the next LOAD_CHANGE has been rendered (or after `ms`).
+  const afterNextReload = (ms = 4000) => new Promise(resolve => {
+    const store = getStore()
+    let unsub = () => {}
+    const done = () => { clearTimeout(timer); unsub(); setTimeout(resolve, 250) } // let muya re-render
+    const timer = setTimeout(done, ms)
+    if (store) unsub = store.subscribe(m => { if (m.type === 'LOAD_CHANGE') done() })
+  })
+
+  // --- Freshness safety net ----------------------------------------------------
+  // File watchers on network drives can die silently (sleep, reconnects). While the
+  // window is visible, check the file's mtime/size every 3 s and on focus; if it
+  // changed and the watcher hasn't reloaded within ~2.5 s, reload from disk.
+  let fresh = { path: null, mtimeMs: 0, size: -1 }
+  let recheckTimer = null
+  let freshPaused = false // test hook only
+  const currentPath = () => { const s = getStore(); const f = s && s.state.editor.currentFile; return f && f.pathname }
+  const statOf = p => fs.promises.stat(p).then(st => ({ mtimeMs: st.mtimeMs, size: st.size })).catch(() => null)
+  const markFresh = async () => {
+    const p = currentPath()
+    const st = p && await statOf(p)
+    if (st) fresh = Object.assign({ path: p }, st)
+  }
+  const differs = st => st && (st.mtimeMs !== fresh.mtimeMs || st.size !== fresh.size)
+  const checkFresh = async () => {
+    const p = currentPath()
+    if (!p || freshPaused || document.visibilityState !== 'visible') return
+    if (fresh.path !== p) return markFresh() // first look at this doc
+    if (!differs(await statOf(p)) || recheckTimer) return
+    recheckTimer = setTimeout(async () => { // give the watcher its chance first
+      recheckTimer = null
+      if (currentPath() === p && differs(await statOf(p))) reloadFromDisk()
+    }, 2500)
+  }
+  const hookStore = () => {
+    const store = getStore()
+    if (!store) return setTimeout(hookStore, 500)
+    store.subscribe(m => { if (m.type === 'LOAD_CHANGE') markFresh() })
+  }
+  hookStore()
+  setInterval(checkFresh, 3000)
+  window.addEventListener('focus', checkFresh)
 
   // --- Task lines in the markdown source -------------------------------------
   // Mirrors muya's rules: list marker [-*+] or 1. / 1), then "[ ]" / "[x]" and
@@ -122,14 +179,23 @@
     }
     const lines = text.split('\n')
     const hits = findTaskLines(lines)
-    if (idx < 0 || hits.length !== boxes.length) {
-      return notify(`Checkbox not saved: the file has ${hits.length} task items but the page shows ${boxes.length}.`)
-    }
     const hit = hits[idx]
-    const shown = norm(itemText(cb))
-    const src = norm(hit.text)
-    if (hit.checked !== wasChecked || (src && !shown.startsWith(src.slice(0, 40)))) {
-      return notify('Checkbox not saved: the page and the file disagree about this item. Reloading may help.')
+    const matches = idx >= 0 && hits.length === boxes.length && hit.checked === wasChecked &&
+      (!norm(hit.text) || norm(itemText(cb)).startsWith(norm(hit.text).slice(0, 40)))
+    if (!matches) {
+      // Usually the page is out of date (the file changed moments ago, or its
+      // watcher died): refresh it, then re-check. If it still can't be matched,
+      // the doc has task-like lines the viewer can't map safely.
+      reloadFromDisk()
+      afterNextReload().then(() => {
+        let now = []
+        try { now = findTaskLines(fs.readFileSync(file.pathname, 'utf8').split('\n')) } catch (e) {}
+        const pageNow = document.querySelectorAll(`${EDITOR} ${CHECKBOX}`).length
+        notify(now.length === pageNow
+          ? 'This page was out of date and has been refreshed. Click the box again.'
+          : `Checkbox not saved: this document has ${now.length} task lines but the viewer shows ${pageNow} checkboxes, so it can't tell which line to change.`)
+      })
+      return
     }
 
     const want = !hit.checked
@@ -307,5 +373,5 @@
   }
 
   // Test hook.
-  window.__mtViewerMod = { findTaskLines, getStore, toggleTask, itemText, highlightSelection, records: () => records }
+  window.__mtViewerMod = { findTaskLines, getStore, toggleTask, itemText, highlightSelection, records: () => records, reloadFromDisk, fresh: () => fresh, pauseFresh: v => { freshPaused = v } }
 })()

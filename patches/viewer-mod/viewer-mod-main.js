@@ -1,5 +1,6 @@
-// MarkText Viewer mods — main process: window placement + remembered size/position.
-// Last modified: 2026-10-02--0210
+// MarkText Viewer mods — main process: window placement, remembered size/position,
+// reload-from-disk on request.
+// Last modified: 2026-10-09--1308
 // Required lazily from dist/electron/main.js (patched by patches/viewer-mods.js).
 //
 // - New doc windows cascade ("layer", like SumatraPDF) one title bar down/right
@@ -10,10 +11,22 @@
 //   is saved whenever a visible viewer window is moved, resized, (un)maximised or
 //   closed — not only on close — so restarts/crashes don't lose it. Hidden
 //   pre-warmed windows never write it.
+// - 'viewer-mod:reload': the renderer asks for its doc to be re-read from disk
+//   (stale page, or a file watcher that died). Uses MarkText's own loader
+//   (global.__mtLoadMarkdownFile, exposed by the main.js patch) and answers with
+//   the same 'mt::update-file' change event the watcher sends.
 'use strict'
 const fs = require('fs')
 const path = require('path')
-const { app, screen } = require('electron')
+const { app, ipcMain, screen } = require('electron')
+
+ipcMain.handle('viewer-mod:reload', async (e, { pathname, eol, autoGuessEncoding, trimTrailingNewline }) => {
+  const load = global.__mtLoadMarkdownFile
+  if (!load) throw new Error('loader not available')
+  const data = await load(pathname, eol, autoGuessEncoding, trimTrailingNewline)
+  if (!e.sender.isDestroyed()) e.sender.send('mt::update-file', { type: 'change', change: { pathname, data } })
+  return true
+})
 
 const STEP = 32 // one title bar
 const PLACING_GRACE_MS = 600 // ignore move/resize events caused by our own placement

@@ -1,4 +1,4 @@
-// Last modified: 2026-10-02--1350
+// Last modified: 2026-10-09--1308
 // Asar patch: MarkText Viewer reader mods (see patches/viewer-mod/).
 //   - renderer.js: reload silently when the file changes on disk, keep scroll
 //     position, clear stale "changed/removed on disk" notices on reload
@@ -42,10 +42,10 @@ patchFile(path.join(dir, 'renderer.js'), [
     'case"add":case"change":{return void e("LOAD_CHANGE",r);const{autoSave:o}=i.preferences;'
   ],
   // LOAD_CHANGE: drop stale "changed/removed on disk" notices (atomic saves can
-  // briefly look like a delete).
+  // briefly look like a delete) and old checkbox notices (viewer-mod.js).
   [
     'h.notifications=f,',
-    'h.notifications=f.filter((e=>"file_changed"!==e.exclusiveType)),'
+    'h.notifications=f.filter((e=>"file_changed"!==e.exclusiveType&&"viewer_checkbox"!==e.exclusiveType)),'
   ],
   // LOAD_CHANGE: don't jump to the cursor; ask the editor to keep the scroll position.
   [
@@ -77,6 +77,12 @@ patchFile(path.join(dir, 'main.js'), [
   [
     'T.setSheetOffset(U),u.manage(T),',
     `T.setSheetOffset(U),${MOD_MAIN}.manage(T,this._startHidden),`
+  ],
+  // Expose MarkText's own loader (be = loadMarkdownFile) so viewer-mod-main.js can
+  // reload a doc from disk on request (stale page / dead watcher safety net).
+  [
+    '_startPipeServer(){const e=n(1808),',
+    '_startPipeServer(){global.__mtLoadMarkdownFile=be;const e=n(1808),'
   ],
   // Pre-warmed window path: open the doc the normal way (_doOpenTab), which also
   // starts the file watcher and records the recent doc. The April pipe code only
