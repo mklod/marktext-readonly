@@ -6,6 +6,21 @@
 > - Strip unused heavy deps (mermaid 24MB, vega, etc.) for smaller build
 > - Installer with automatic .md file association setup
 
+## Build 2026-10-09--1615
+
+### Changes
+- **Dollar amounts no longer render as math.** muya's inline-math rule paired any two `$` on a line. In `calibreader\MARKETING-ANALYSIS\MARKET_ANALYSIS.md`, `**now $11.99.** … **under $5K**` became a formula, rendered in math italics with its bold lost.
+  - Inline math now follows the Pandoc/Obsidian/GitHub rule: the opening `$` is followed by a non-space, and the closing `$` is preceded by a non-space and not followed by a digit.
+  - Real math (`$x^2$`, `$\alpha + \beta$`, `$a$ and $b$`) still renders. `$ x $` with inner spaces is now plain text, same as Obsidian/GitHub.
+- `mathtest.mjs` fails 3/4 on the previous build (it reproduces the exact `11.99.** … **under` capture) and passes 4/4 after. The full `MARKET_ANALYSIS.md` has 10 lines with `$` and 0 math spans after the fix.
+- Test fix: the reader suite's drag target is now chosen from real visible text. It used to take the first layout box of a fixed line, which became a few-px hidden `**` marker once `release_todo.md` changed, so the drag was zero-length. Same failure on the old build, so it was not a regression.
+- Backup of the previous deploy: `app.asar.bak-2026-10-09b`.
+
+### Testing Checklist
+> [!warning] Testing Checklist
+> - [ ] `MARKET_ANALYSIS.md` Android section: `$11.99`, `$5K`, `$240K`, `$100–250K` show as normal text with the bold intact
+>   - Notes:
+
 ## Build 2026-10-09--1318
 
 ### Changes
